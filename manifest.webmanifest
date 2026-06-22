@@ -1,0 +1,3 @@
+{
+  "name":"PGA TOUR 18","short_name":"TOUR 18","description":"18ホール・ストロークプレー ゴルフゲーム","start_url":"./","display":"standalone","background_color":"#f4f6f4","theme_color":"#092a20","orientation":"portrait-primary","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

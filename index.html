@@ -1,856 +1,138 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ゴルフトーナメント スコアラー入力プロトタイプ v2</title>
-  <style>
-    :root {
-      --green:#0b6b3a;
-      --deep:#073b24;
-      --gold:#d8a928;
-      --bg:#f3f7f4;
-      --card:#ffffff;
-      --line:#dbe7df;
-      --text:#17202a;
-      --muted:#667085;
-      --red:#d92d20;
-      --blue:#2563eb;
-      --orange:#ea7a1a;
-      --gray:#667085;
-    }
-    * { box-sizing:border-box; }
-    body {
-      margin:0;
-      font-family:"Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
-      background:linear-gradient(160deg,#eaf7ef,#fff 48%,#fff8dd);
-      color:var(--text);
-      min-height:100vh;
-    }
-    header {
-      background:linear-gradient(135deg,var(--deep),var(--green));
-      color:white;
-      padding:18px 16px;
-      position:sticky;
-      top:0;
-      z-index:10;
-      box-shadow:0 8px 24px rgba(0,0,0,.16);
-    }
-    header h1 { margin:0; font-size:20px; line-height:1.35; }
-    header p { margin:5px 0 0; font-size:13px; opacity:.9; }
-    .wrap {
-      max-width:1100px;
-      margin:0 auto;
-      padding:14px;
-    }
-    .tabs {
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:8px;
-      margin-bottom:12px;
-    }
-    button {
-      font:inherit;
-      font-weight:700;
-      border:none;
-      cursor:pointer;
-      border-radius:14px;
-      padding:12px 14px;
-      transition:.12s;
-    }
-    button:active { transform:scale(.98); }
-    button:disabled {
-      opacity:.45;
-      cursor:not-allowed;
-      transform:none;
-    }
-    .tab {
-      background:#e9f2ec;
-      color:var(--deep);
-      border:1px solid #cfe3d6;
-    }
-    .tab.active {
-      background:var(--green);
-      color:white;
-    }
-    .screen { display:none; }
-    .screen.active { display:block; }
-    .card {
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:22px;
-      padding:16px;
-      box-shadow:0 12px 32px rgba(16,24,40,.08);
-      margin-bottom:14px;
-    }
-    .row {
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .between {
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-      align-items:center;
-    }
-    label {
-      display:block;
-      font-size:13px;
-      color:var(--muted);
-      font-weight:700;
-      margin-bottom:6px;
-    }
-    select, input {
-      width:100%;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid #cfd8d3;
-      font:inherit;
-      background:white;
-    }
-    .selectBox { flex:1; min-width:160px; }
-    .pill {
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      border-radius:999px;
-      padding:6px 10px;
-      font-size:12px;
-      font-weight:800;
-      background:#eef7f1;
-      color:var(--green);
-      border:1px solid #d4eadb;
-    }
-    .holeTitle {
-      font-size:28px;
-      font-weight:900;
-      color:var(--deep);
-      margin:0;
-    }
-    .player {
-      border:1px solid #e2e8e4;
-      border-radius:20px;
-      padding:14px;
-      margin-top:12px;
-      background:#fff;
-    }
-    .player.done {
-      background:#f0fdf4;
-      border-color:#86efac;
-    }
-    .player.withdrawn {
-      background:#f5f5f5;
-      border-color:#d0d5dd;
-      color:#667085;
-    }
-    .playerHead {
-      display:flex;
-      justify-content:space-between;
-      gap:8px;
-      align-items:center;
-      margin-bottom:10px;
-    }
-    .name {
-      font-size:18px;
-      font-weight:900;
-    }
-    .scoreNow {
-      font-size:15px;
-      color:var(--muted);
-      font-weight:800;
-    }
-    .shotLog {
-      font-size:13px;
-      color:#344054;
-      line-height:1.7;
-      background:#f8faf9;
-      border-radius:14px;
-      padding:10px;
-      min-height:42px;
-      margin-bottom:10px;
-    }
-    .actions {
-      display:grid;
-      grid-template-columns:repeat(2,1fr);
-      gap:8px;
-    }
-    @media (min-width:680px) {
-      .actions { grid-template-columns:repeat(3,1fr); }
-    }
-    .shot {
-      color:white;
-      min-height:48px;
-    }
-    .fw { background:#16a34a; }
-    .rough { background:#84cc16; color:#122; }
-    .green { background:#15803d; }
-    .ob { background:#dc2626; }
-    .penalty { background:#7c3aed; }
-    .cup { background:#d8a928; color:#111827; }
-    .utility {
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:8px;
-      margin-top:10px;
-    }
-    .ghost {
-      background:#f2f4f7;
-      color:#344054;
-      border:1px solid #d0d5dd;
-    }
-    .danger {
-      background:#fee4e2;
-      color:#b42318;
-      border:1px solid #fda29b;
-    }
-    .blue {
-      background:#dbeafe;
-      color:#1d4ed8;
-      border:1px solid #93c5fd;
-    }
-    .orange {
-      background:#ffedd5;
-      color:#c2410c;
-      border:1px solid #fdba74;
-    }
-    .notice {
-      padding:12px;
-      border-radius:16px;
-      background:#fff8db;
-      border:1px solid #f2d06b;
-      font-weight:800;
-      color:#614700;
-      margin-top:12px;
-      display:none;
-    }
-    .notice.show { display:block; }
-    table {
-      width:100%;
-      border-collapse:collapse;
-      overflow:hidden;
-      border-radius:16px;
-      font-size:14px;
-    }
-    th, td {
-      padding:10px 8px;
-      border-bottom:1px solid #edf2ef;
-      text-align:left;
-      vertical-align:middle;
-    }
-    th {
-      background:#f4f8f5;
-      color:#344054;
-      font-size:12px;
-    }
-    .rankScore {
-      font-weight:900;
-      font-size:18px;
-    }
-    .wd {
-      color:var(--red);
-      font-weight:900;
-    }
-    .modalBackdrop {
-      position:fixed;
-      inset:0;
-      background:rgba(15,23,42,.55);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding:16px;
-      z-index:100;
-    }
-    .modalBackdrop.show { display:flex; }
-    .modal {
-      width:100%;
-      max-width:520px;
-      background:white;
-      border-radius:24px;
-      padding:18px;
-      box-shadow:0 24px 80px rgba(0,0,0,.25);
-    }
-    .modal h2 {
-      margin:0 0 8px;
-      font-size:22px;
-    }
-    .modal p {
-      color:#475467;
-      line-height:1.7;
-    }
-    .reportOptions {
-      display:grid;
-      gap:10px;
-      margin-top:12px;
-    }
-    .playerPick {
-      display:grid;
-      gap:8px;
-      margin-top:12px;
-    }
-    .footerButtons {
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:8px;
-      margin-top:14px;
-    }
-    .toast {
-      position:fixed;
-      left:50%;
-      bottom:18px;
-      transform:translateX(-50%);
-      background:#101828;
-      color:white;
-      padding:12px 16px;
-      border-radius:999px;
-      font-weight:800;
-      display:none;
-      z-index:120;
-      box-shadow:0 12px 36px rgba(0,0,0,.28);
-      max-width:calc(100% - 24px);
-      text-align:center;
-    }
-    .toast.show { display:block; }
-    .small {
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.6;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#092a20">
+  <meta name="description" content="1打ずつ戦う、18ホールのゴルフスコアリングゲーム">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <title>PGA TOUR 18</title>
 </head>
 <body>
-<header>
-  <h1>スコアラー入力プロトタイプ v2</h1>
-  <p>1スコアラー1組固定・可変人数・棄権報告・自動ホール移動対応</p>
-</header>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true"><span>18</span></div>
+      <div class="brand-copy">
+        <strong>PGA TOUR 18</strong>
+        <span>STROKE PLAY</span>
+      </div>
+      <button class="icon-button" id="newGameButton" aria-label="新しいラウンド">↻</button>
+    </header>
 
-<div class="wrap">
-  <div class="tabs">
-    <button class="tab active" id="scorerTab">スコアラー側</button>
-    <button class="tab" id="leaderboardTab">本部ランキング</button>
+    <nav class="tabs" aria-label="画面切り替え">
+      <button class="tab active" data-view="play">PLAY</button>
+      <button class="tab" data-view="score">SCORE</button>
+      <button class="tab" data-view="ranking">LEADERBOARD</button>
+    </nav>
+
+    <main>
+      <section id="playView" class="view active" aria-label="プレイ画面">
+        <div id="startPanel" class="start-panel hidden">
+          <div class="hero-emblem">18</div>
+          <p class="eyebrow">ONE PLAYER CHAMPIONSHIP</p>
+          <h1>最終ホールまで、<br>一打ずつ勝負する。</h1>
+          <p>能力値と判断で20人のフィールドに挑戦。すべてのショットがスコアカードに残ります。</p>
+          <label class="name-field">
+            <span>PLAYER NAME</span>
+            <input id="playerNameInput" maxlength="12" value="PLAYER" autocomplete="off">
+          </label>
+          <button class="primary-button" id="startButton">ROUND START <span>→</span></button>
+        </div>
+
+        <div id="gamePanel" class="game-panel hidden">
+          <div class="live-strip">
+            <div><span>POS</span><strong id="playerPosition">T1</strong></div>
+            <div><span>SCORE</span><strong id="liveScore">E</strong></div>
+            <div><span>THRU</span><strong id="thruValue">—</strong></div>
+            <div class="live-badge"><i></i> LIVE</div>
+          </div>
+
+          <article class="hole-card">
+            <div class="hole-heading">
+              <div><span>HOLE</span><strong id="holeNumber">1</strong></div>
+              <div class="hole-meta"><span id="holePar">PAR 4</span><b id="holeYards">412 YDS</b></div>
+              <span class="difficulty" id="difficultyLabel">STANDARD</span>
+            </div>
+            <div class="course-visual" id="courseVisual">
+              <svg class="course-map" viewBox="0 0 360 220" preserveAspectRatio="none" aria-label="ホール簡易マップ">
+                <rect width="360" height="220" fill="#173c2e"/>
+                <path id="fairwayPath" d="M158 220 C120 170 220 146 176 104 C135 64 192 48 180 20" fill="none" stroke="#4f9566" stroke-width="86" stroke-linecap="round"/>
+                <ellipse cx="180" cy="23" rx="49" ry="23" fill="#72b77b"/>
+                <g id="waterFeature" class="hazard-feature"><path d="M235 78 Q310 62 360 84 L360 137 Q295 118 230 134 Q250 108 235 78" fill="#2787a7"/><text x="309" y="108">WATER</text></g>
+                <g id="leftBunker"><ellipse cx="131" cy="44" rx="31" ry="11" fill="#decf9c" transform="rotate(-20 131 44)"/><text x="108" y="67">B</text></g>
+                <g id="rightBunker"><ellipse cx="226" cy="39" rx="27" ry="10" fill="#decf9c" transform="rotate(20 226 39)"/><text x="238" y="64">B</text></g>
+                <g id="obLeft" class="ob-zone"><path d="M14 25V196"/><text x="20" y="112">OB</text></g>
+                <g id="obRight" class="ob-zone"><path d="M346 25V196"/><text x="324" y="112">OB</text></g>
+                <g class="tee-mark"><line x1="158" y1="205" x2="202" y2="205"/><circle cx="158" cy="205" r="3"/><circle cx="202" cy="205" r="3"/></g>
+                <g class="map-pin"><line x1="180" y1="12" x2="180" y2="39"/><path d="M181 12 L203 20 L181 27Z"/></g>
+                <g id="positionMarker" class="position-marker"><circle r="9"/><circle r="3"/></g>
+              </svg>
+              <div class="wind-pill" id="windPill">WIND 2m/s →</div>
+              <div class="distance-pill" id="distancePill">412 YDS</div>
+            </div>
+            <div class="shot-status">
+              <div><span>SHOT</span><strong id="shotNumber">1</strong></div>
+              <div><span>LIE</span><strong id="lieValue">TEE</strong></div>
+              <div><span>TO PIN</span><strong id="distanceValue">412y</strong></div>
+            </div>
+          </article>
+
+          <div id="resultBanner" class="result-banner hidden" aria-live="polite">
+            <span id="resultIcon">●</span>
+            <div><strong id="resultTitle">フェアウェイ</strong><p id="resultText">残り156ヤード</p></div>
+          </div>
+
+          <section id="timingPanel" class="timing-panel hidden" aria-label="タイミングショット">
+            <div class="timing-topline"><span id="timingShotName">攻める</span><button id="cancelTimingButton">選び直す</button></div>
+            <div class="timing-grade" id="timingGrade">CENTERを狙え</div>
+            <div class="timing-bar" id="timingBar">
+              <div class="timing-zones"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="timing-center"></div>
+              <div class="timing-cursor" id="timingCursor"></div>
+            </div>
+            <div class="timing-labels"><span>← LEFT</span><b>PERFECT</b><span>RIGHT →</span></div>
+            <button class="swing-button" id="swingButton">ショット！</button>
+          </section>
+
+          <section class="action-panel">
+            <div class="section-title"><span>SELECT SHOT</span><small id="abilityText">POWER 76 · ACCURACY 78</small></div>
+            <div class="shot-grid" id="shotOptions"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="scoreView" class="view" aria-label="スコアカード">
+        <div class="page-heading"><p>SCORECARD</p><h2 id="scorecardName">PLAYER</h2></div>
+        <div class="summary-grid">
+          <div><span>OUT</span><strong id="outScore">—</strong></div>
+          <div><span>IN</span><strong id="inScore">—</strong></div>
+          <div><span>TOTAL</span><strong id="totalScore">—</strong></div>
+          <div><span>± PAR</span><strong id="scoreToPar">E</strong></div>
+        </div>
+        <div class="scorecard-wrap"><table class="scorecard" id="scorecardTable"></table></div>
+        <div class="legend"><span><i class="under-dot"></i> UNDER</span><span><i class="even-dot"></i> EVEN</span><span><i class="over-dot"></i> OVER</span></div>
+      </section>
+
+      <section id="rankingView" class="view" aria-label="ランキング">
+        <div class="page-heading leaderboard-heading"><div><p>CHAMPIONSHIP</p><h2>LEADERBOARD</h2></div><span><i></i> LIVE</span></div>
+        <div class="ranking-subhead"><span>POS</span><span>PLAYER</span><span>THRU</span><span>TOTAL</span></div>
+        <div id="rankingList" class="ranking-list"></div>
+      </section>
+    </main>
   </div>
 
-  <section id="scorerScreen" class="screen active">
-    <div class="card">
-      <div class="row">
-        <div class="selectBox">
-          <label>担当組</label>
-          <select id="groupSelect"></select>
-        </div>
-        <div class="selectBox">
-          <label>現在ホール</label>
-          <select id="holeSelect"></select>
-        </div>
-      </div>
-      <p class="small">
-        ※ 実運用では、スコアラーごとに担当組を固定し、他組は表示しない設計にします。
-        この試作版では確認用に組を切り替えられます。
-      </p>
-    </div>
-
-    <div class="card">
-      <div class="between">
-        <div>
-          <span class="pill" id="groupLabel">第1組</span>
-          <h2 class="holeTitle" id="holeLabel">Hole 1</h2>
-        </div>
-        <button class="orange" id="reportBtn">本部報告</button>
-      </div>
-
-      <div id="playersArea"></div>
-      <div class="notice" id="autoMoveNotice"></div>
-    </div>
-  </section>
-
-  <section id="leaderboardScreen" class="screen">
-    <div class="card">
-      <div class="between">
-        <div>
-          <span class="pill">LIVE</span>
-          <h2 class="holeTitle">本部ランキング</h2>
-        </div>
-        <button class="ghost" id="resetBtn">データ初期化</button>
-      </div>
-      <p class="small">グロスのみ。棄権選手はランキング上で「棄権」と表示します。</p>
-    </div>
-
-    <div class="card">
-      <table>
-        <thead>
-          <tr>
-            <th>順位</th>
-            <th>選手</th>
-            <th>組</th>
-            <th>進行</th>
-            <th>合計</th>
-            <th>状態</th>
-          </tr>
-        </thead>
-        <tbody id="rankingBody"></tbody>
-      </table>
-    </div>
-  </section>
-</div>
-
-<div class="modalBackdrop" id="reportModal">
-  <div class="modal">
-    <h2>本部報告</h2>
-    <p>報告内容を選択してください。</p>
-    <div class="reportOptions" id="reportOptions">
-      <button class="danger" data-report="withdraw">棄権</button>
-      <button class="blue" data-report="referee">競技委員要請</button>
-      <button class="orange" data-report="office">本部連絡</button>
-    </div>
-    <div class="footerButtons">
-      <button class="ghost" id="closeReport">閉じる</button>
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-trophy">◆</div>
+      <p>FINAL RESULT</p><h2 id="modalTitle">ROUND COMPLETE</h2>
+      <strong id="finalPosition">1st</strong><span id="finalScore">-8</span>
+      <button class="primary-button" id="viewRankingButton">VIEW LEADERBOARD</button>
+      <button class="text-button" id="closeModalButton">スコアカードを見る</button>
     </div>
   </div>
-</div>
-
-<div class="modalBackdrop" id="withdrawModal">
-  <div class="modal">
-    <h2>棄権選手を選択</h2>
-    <p>この組の中から棄権する選手を選んでください。</p>
-    <div class="playerPick" id="withdrawPlayerList"></div>
-    <div class="footerButtons">
-      <button class="ghost" id="backToReport">戻る</button>
-      <button class="ghost" id="cancelWithdraw">閉じる</button>
-    </div>
-  </div>
-</div>
-
-<div class="modalBackdrop" id="confirmModal">
-  <div class="modal">
-    <h2>確認</h2>
-    <p id="confirmText"></p>
-    <div class="footerButtons">
-      <button class="ghost" id="confirmNo">いいえ</button>
-      <button class="danger" id="confirmYes">はい</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-const STORAGE_KEY = "golf_score_prototype_v2";
-
-const initialState = {
-  groups: [
-    {
-      id: 1,
-      name: "第1組",
-      players: [
-        { id:"p1", name:"山田 太郎", status:"active", scores:{}, shots:{} },
-        { id:"p2", name:"鈴木 一郎", status:"active", scores:{}, shots:{} },
-        { id:"p3", name:"佐藤 次郎", status:"active", scores:{}, shots:{} },
-        { id:"p4", name:"田中 三郎", status:"active", scores:{}, shots:{} }
-      ]
-    },
-    {
-      id: 2,
-      name: "第2組",
-      players: [
-        { id:"p5", name:"高橋 健", status:"active", scores:{}, shots:{} },
-        { id:"p6", name:"小林 誠", status:"active", scores:{}, shots:{} },
-        { id:"p7", name:"中村 翔", status:"active", scores:{}, shots:{} }
-      ]
-    },
-    {
-      id: 3,
-      name: "第3組（欠場者あり）",
-      players: [
-        { id:"p8", name:"伊藤 大輔", status:"active", scores:{}, shots:{} },
-        { id:"p9", name:"渡辺 亮", status:"active", scores:{}, shots:{} }
-      ]
-    }
-  ],
-  selectedGroupId: 1,
-  selectedHole: 1
-};
-
-let state = loadState();
-let pendingWithdrawPlayerId = null;
-
-function loadState() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  return structuredClone(initialState);
-}
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-function $(id) { return document.getElementById(id); }
-function currentGroup() {
-  return state.groups.find(g => g.id === Number(state.selectedGroupId));
-}
-function currentHoleKey() {
-  return "h" + state.selectedHole;
-}
-function toast(message) {
-  const el = $("toast");
-  el.textContent = message;
-  el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 2400);
-}
-function showModal(id) { $(id).classList.add("show"); }
-function hideModal(id) { $(id).classList.remove("show"); }
-
-function setupSelectors() {
-  const groupSelect = $("groupSelect");
-  groupSelect.innerHTML = "";
-  state.groups.forEach(g => {
-    const opt = document.createElement("option");
-    opt.value = g.id;
-    opt.textContent = g.name;
-    groupSelect.appendChild(opt);
-  });
-  groupSelect.value = state.selectedGroupId;
-
-  const holeSelect = $("holeSelect");
-  holeSelect.innerHTML = "";
-  for (let h=1; h<=18; h++) {
-    const opt = document.createElement("option");
-    opt.value = h;
-    opt.textContent = h + "番ホール";
-    holeSelect.appendChild(opt);
-  }
-  holeSelect.value = state.selectedHole;
-}
-
-function renderScorer() {
-  setupSelectors();
-  const group = currentGroup();
-  $("groupLabel").textContent = group.name;
-  $("holeLabel").textContent = "Hole " + state.selectedHole;
-  const holeKey = currentHoleKey();
-  const area = $("playersArea");
-  area.innerHTML = "";
-
-  group.players.forEach(player => {
-    const shots = player.shots[holeKey] || [];
-    const done = player.scores[holeKey] != null;
-    const withdrawn = player.status === "withdrawn";
-
-    const card = document.createElement("div");
-    card.className = "player" + (done ? " done" : "") + (withdrawn ? " withdrawn" : "");
-
-    const scoreText = withdrawn ? "棄権" : done ? `${player.scores[holeKey]} 打で確定` : `${shots.length} 打目まで入力`;
-    const logText = withdrawn
-      ? "この選手は棄権のため、スコア入力できません。"
-      : shots.length ? shots.map((s,i) => `${i+1}打目：${s}`).join(" ／ ") : "まだ入力がありません。";
-
-    card.innerHTML = `
-      <div class="playerHead">
-        <div class="name">${player.name}</div>
-        <div class="scoreNow">${scoreText}</div>
-      </div>
-      <div class="shotLog">${logText}</div>
-    `;
-
-    const actions = document.createElement("div");
-    actions.className = "actions";
-
-    const buttons = [
-      ["フェアウェイ","fw"],
-      ["ラフ","rough"],
-      ["グリーン","green"],
-      ["OB","ob"],
-      ["ペナルティ","penalty"],
-      ["カップイン","cup"]
-    ];
-
-    buttons.forEach(([label, cls]) => {
-      const btn = document.createElement("button");
-      btn.className = "shot " + cls;
-      btn.textContent = label;
-      btn.disabled = withdrawn || done;
-      btn.onclick = () => addShot(player.id, label);
-      actions.appendChild(btn);
-    });
-
-    const utility = document.createElement("div");
-    utility.className = "utility";
-
-    const undo = document.createElement("button");
-    undo.className = "ghost";
-    undo.textContent = "1打戻す";
-    undo.disabled = withdrawn || done || shots.length === 0;
-    undo.onclick = () => undoShot(player.id);
-
-    const edit = document.createElement("button");
-    edit.className = "ghost";
-    edit.textContent = "確定取消";
-    edit.disabled = withdrawn || !done;
-    edit.onclick = () => unconfirmHole(player.id);
-
-    utility.appendChild(undo);
-    utility.appendChild(edit);
-
-    card.appendChild(actions);
-    card.appendChild(utility);
-    area.appendChild(card);
-  });
-
-  renderAutoMoveNotice();
-  renderRanking();
-}
-
-function addShot(playerId, result) {
-  const group = currentGroup();
-  const player = group.players.find(p => p.id === playerId);
-  if (!player || player.status === "withdrawn") return;
-
-  const holeKey = currentHoleKey();
-  if (!player.shots[holeKey]) player.shots[holeKey] = [];
-  if (player.scores[holeKey] != null) return;
-
-  player.shots[holeKey].push(result);
-
-  if (result === "カップイン") {
-    player.scores[holeKey] = player.shots[holeKey].length;
-    toast(`${player.name}：Hole ${state.selectedHole} を ${player.scores[holeKey]} 打で送信しました`);
-    checkGroupHoleComplete();
-  }
-
-  saveState();
-  renderScorer();
-}
-
-function undoShot(playerId) {
-  const player = currentGroup().players.find(p => p.id === playerId);
-  const holeKey = currentHoleKey();
-  if (!player || player.status === "withdrawn" || player.scores[holeKey] != null) return;
-  if (player.shots[holeKey]?.length) {
-    player.shots[holeKey].pop();
-    saveState();
-    renderScorer();
-  }
-}
-
-function unconfirmHole(playerId) {
-  const player = currentGroup().players.find(p => p.id === playerId);
-  const holeKey = currentHoleKey();
-  if (!player || player.status === "withdrawn") return;
-  delete player.scores[holeKey];
-  if (player.shots[holeKey]?.[player.shots[holeKey].length - 1] === "カップイン") {
-    player.shots[holeKey].pop();
-  }
-  toast(`${player.name} のHole ${state.selectedHole}確定を取り消しました`);
-  saveState();
-  renderScorer();
-}
-
-function activePlayers(group) {
-  return group.players.filter(p => p.status !== "withdrawn");
-}
-
-function isHoleCompleteForGroup(group, hole) {
-  const key = "h" + hole;
-  const active = activePlayers(group);
-  if (active.length === 0) return false;
-  return active.every(p => p.scores[key] != null);
-}
-
-function checkGroupHoleComplete() {
-  const group = currentGroup();
-  if (isHoleCompleteForGroup(group, state.selectedHole)) {
-    const nextHole = state.selectedHole + 1;
-    if (nextHole <= 18) {
-      setTimeout(() => {
-        state.selectedHole = nextHole;
-        saveState();
-        renderScorer();
-        toast(`${group.name} 全員ホールアウト。Hole ${nextHole}へ自動移動しました`);
-      }, 700);
-    }
-  }
-}
-
-function renderAutoMoveNotice() {
-  const group = currentGroup();
-  const notice = $("autoMoveNotice");
-  const active = activePlayers(group);
-  const key = currentHoleKey();
-  const doneCount = active.filter(p => p.scores[key] != null).length;
-  notice.classList.add("show");
-  if (active.length === 0) {
-    notice.textContent = "この組にプレー中の選手がいません。";
-  } else if (doneCount === active.length) {
-    notice.textContent = "全員ホールアウト済みです。次ホールへ自動移動します。";
-  } else {
-    notice.textContent = `ホールアウト状況：${doneCount} / ${active.length} 名完了。全員カップインで次ホールへ自動移動します。`;
-  }
-}
-
-function openWithdrawFlow() {
-  hideModal("reportModal");
-  const list = $("withdrawPlayerList");
-  list.innerHTML = "";
-  currentGroup().players.forEach(player => {
-    const btn = document.createElement("button");
-    btn.className = player.status === "withdrawn" ? "ghost" : "danger";
-    btn.textContent = player.status === "withdrawn" ? `${player.name}（棄権済み）` : player.name;
-    btn.disabled = player.status === "withdrawn";
-    btn.onclick = () => confirmWithdraw(player.id);
-    list.appendChild(btn);
-  });
-  showModal("withdrawModal");
-}
-
-function confirmWithdraw(playerId) {
-  pendingWithdrawPlayerId = playerId;
-  const player = currentGroup().players.find(p => p.id === playerId);
-  $("confirmText").innerHTML = `<strong>${player.name}</strong> が棄権で間違いないですか？`;
-  hideModal("withdrawModal");
-  showModal("confirmModal");
-}
-
-function executeWithdraw() {
-  const player = currentGroup().players.find(p => p.id === pendingWithdrawPlayerId);
-  if (!player) return;
-  player.status = "withdrawn";
-  player.withdrawnAtHole = state.selectedHole;
-  player.withdrawnAt = new Date().toISOString();
-
-  saveState();
-  hideModal("confirmModal");
-  pendingWithdrawPlayerId = null;
-  toast("本部に棄権情報が送信されました");
-  checkGroupHoleComplete();
-  renderScorer();
-}
-
-function totalScore(player) {
-  return Object.values(player.scores || {}).reduce((sum, n) => sum + Number(n || 0), 0);
-}
-function holesCompleted(player) {
-  return Object.keys(player.scores || {}).length;
-}
-
-function renderRanking() {
-  const body = $("rankingBody");
-  if (!body) return;
-  const rows = [];
-  state.groups.forEach(group => {
-    group.players.forEach(player => {
-      rows.push({
-        group: group.name,
-        player,
-        total: totalScore(player),
-        holes: holesCompleted(player),
-        status: player.status
-      });
-    });
-  });
-
-  const active = rows
-    .filter(r => r.status !== "withdrawn")
-    .sort((a,b) => a.total - b.total || b.holes - a.holes || a.player.name.localeCompare(b.player.name, "ja"));
-  const withdrawn = rows
-    .filter(r => r.status === "withdrawn")
-    .sort((a,b) => a.player.name.localeCompare(b.player.name, "ja"));
-
-  body.innerHTML = "";
-  let rank = 1;
-  active.forEach(r => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${rank}</td>
-      <td><strong>${r.player.name}</strong></td>
-      <td>${r.group}</td>
-      <td>${r.holes}H終了</td>
-      <td class="rankScore">${r.total}</td>
-      <td>プレー中</td>
-    `;
-    body.appendChild(tr);
-    rank++;
-  });
-
-  withdrawn.forEach(r => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>-</td>
-      <td><strong>${r.player.name}</strong></td>
-      <td>${r.group}</td>
-      <td>${r.holes}H終了</td>
-      <td class="rankScore">-</td>
-      <td class="wd">棄権</td>
-    `;
-    body.appendChild(tr);
-  });
-}
-
-$("scorerTab").onclick = () => {
-  $("scorerTab").classList.add("active");
-  $("leaderboardTab").classList.remove("active");
-  $("scorerScreen").classList.add("active");
-  $("leaderboardScreen").classList.remove("active");
-};
-$("leaderboardTab").onclick = () => {
-  $("leaderboardTab").classList.add("active");
-  $("scorerTab").classList.remove("active");
-  $("leaderboardScreen").classList.add("active");
-  $("scorerScreen").classList.remove("active");
-  renderRanking();
-};
-
-$("groupSelect").onchange = e => {
-  state.selectedGroupId = Number(e.target.value);
-  saveState();
-  renderScorer();
-};
-$("holeSelect").onchange = e => {
-  state.selectedHole = Number(e.target.value);
-  saveState();
-  renderScorer();
-};
-
-$("reportBtn").onclick = () => showModal("reportModal");
-$("closeReport").onclick = () => hideModal("reportModal");
-$("backToReport").onclick = () => {
-  hideModal("withdrawModal");
-  showModal("reportModal");
-};
-$("cancelWithdraw").onclick = () => hideModal("withdrawModal");
-$("confirmNo").onclick = () => {
-  hideModal("confirmModal");
-  pendingWithdrawPlayerId = null;
-  showModal("withdrawModal");
-};
-$("confirmYes").onclick = executeWithdraw;
-
-document.querySelectorAll("[data-report]").forEach(btn => {
-  btn.onclick = () => {
-    const type = btn.dataset.report;
-    if (type === "withdraw") openWithdrawFlow();
-    if (type === "referee") {
-      hideModal("reportModal");
-      toast("本部に競技委員要請を送信しました");
-    }
-    if (type === "office") {
-      hideModal("reportModal");
-      toast("本部連絡を送信しました");
-    }
-  };
-});
-
-$("resetBtn").onclick = () => {
-  if (confirm("試作データを初期化しますか？")) {
-    localStorage.removeItem(STORAGE_KEY);
-    state = structuredClone(initialState);
-    saveState();
-    renderScorer();
-    renderRanking();
-    toast("データを初期化しました");
-  }
-};
-
-renderScorer();
-renderRanking();
-</script>
+  <script src="app.js"></script>
 </body>
 </html>
