@@ -1,4 +1,5 @@
-const CACHE="pga-tour-18-v7";const ASSETS=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg"];
-self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
+const CACHE="pga-tour-18-v8";const ASSETS=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg"];
+const OPTIONAL_CHARACTER_ASSETS=["assets/characters/balance/icon.png","assets/characters/balance/bust.png","assets/characters/balance/full.png","assets/characters/power/icon.png","assets/characters/power/bust.png","assets/characters/power/full.png","assets/characters/technique/icon.png","assets/characters/technique/bust.png","assets/characters/technique/full.png"];
+self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(async c=>{await c.addAll(ASSETS);await Promise.all(OPTIONAL_CHARACTER_ASSETS.map(async asset=>{try{const response=await fetch(asset);if(response.ok)await c.put(asset,response)}catch{}}))})));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
 self.addEventListener("fetch",e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
