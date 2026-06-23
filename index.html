@@ -69,6 +69,9 @@
                 <g class="tee-mark"><line x1="158" y1="205" x2="202" y2="205"/><circle cx="158" cy="205" r="3"/><circle cx="202" cy="205" r="3"/></g>
                 <g class="map-pin"><line x1="180" y1="12" x2="180" y2="39"/><path d="M181 12 L203 20 L181 27Z"/></g>
                 <g id="positionMarker" class="position-marker"><circle r="9"/><circle r="3"/></g>
+                <path id="shotTrail" class="shot-trail hidden" d=""/>
+                <g id="flightBall" class="flight-ball hidden"><circle r="6"/><circle r="2"/></g>
+                <g id="cupPulse" class="cup-pulse hidden"><circle r="7"/><circle r="13"/></g>
               </svg>
               <div class="wind-pill" id="windPill">WIND 2m/s →</div>
               <div class="distance-pill" id="distancePill">412 YDS</div>
@@ -89,11 +92,11 @@
             <div class="timing-topline"><span id="timingShotName">攻める</span><button id="cancelTimingButton">選び直す</button></div>
             <div class="timing-grade" id="timingGrade">CENTERを狙え</div>
             <div class="timing-bar" id="timingBar">
-              <div class="timing-zones"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="timing-zones" id="timingZones"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="timing-center"></div>
               <div class="timing-cursor" id="timingCursor"></div>
             </div>
-            <div class="timing-labels"><span>← LEFT</span><b>PERFECT</b><span>RIGHT →</span></div>
+            <div class="timing-labels"><span>← LEFT</span><b id="timingCenterLabel">PERFECT ±6%</b><span>RIGHT →</span></div>
             <button class="swing-button" id="swingButton">ショット！</button>
           </section>
 
