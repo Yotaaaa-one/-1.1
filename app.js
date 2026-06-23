@@ -31,7 +31,7 @@ const TIMING_PROFILES={
   puttVeryLong:{key:"putt-very-long",label:"10m+ · EXPERT",perfect:3,good:9,normal:20,miss:38}
 };
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let state=loadState(), resultTimer, timingFrame, timingStart=0, timingPosition=0, pendingShot=null, pendingTimingProfile=null, shotAnimationFrame, isShotAnimating=false, selectedCharacterId="balance", selectedRoundHoles=18;
+let state=loadState(), resultTimer, timingFrame, timingStart=0, timingPosition=0, pendingShot=null, pendingTimingProfile=null, shotAnimationFrame, isShotAnimating=false, shotLocked=false, selectedCharacterId="balance", selectedRoundHoles=18;
 
 function timingProfileFor(opt,current){
   if(current.lie!=="green"){const base=TIMING_PROFILES[opt.id]||TIMING_PROFILES.normal,character=characterById(current.characterId),specialty=character.specialty===opt.id?1.5:0;return{...base,perfect:base.perfect+specialty,good:base.good+specialty*1.5}}
@@ -83,7 +83,7 @@ function renderModeOptions(){
   $("#modeOptions").innerHTML=ROUND_MODES.map(mode=>`<button class="mode-option ${mode.holes===selectedRoundHoles?"selected":""}" data-mode="${mode.holes}">${mode.label}<b>${mode.holes} HOLES</b></button>`).join("");
   $$('[data-mode]').forEach(button=>button.onclick=()=>{selectedRoundHoles=Number(button.dataset.mode);renderModeOptions()});
 }
-function renderAimOptions(){const currentAim=aimById(state.aim);$("#aimLabel").textContent=currentAim.name;$("#aimOptions").innerHTML=AIM_OPTIONS.map(aim=>`<button class="aim-button ${aim.id===state.aim?"selected":""}" data-aim="${aim.id}">${aim.name}</button>`).join("");$$('[data-aim]').forEach(button=>button.onclick=()=>{state.aim=button.dataset.aim;save();render()})}
+function renderAimOptions(){const currentAim=aimById(state.aim);$("#aimLabel").textContent=currentAim.name;$("#aimOptions").innerHTML=AIM_OPTIONS.map(aim=>`<button class="aim-button ${aim.id===state.aim?"selected":""}" data-aim="${aim.id}">${aim.name}</button>`).join("");$$('[data-aim]').forEach(button=>button.onclick=()=>{if(shotLocked||isShotAnimating)return;state.aim=button.dataset.aim;save();render()})}
 
 function resolvePutt(current,opt,timing,rng){
   const d=current.distance,g=timing.grade,putting=current.putting||76;
@@ -170,22 +170,32 @@ function resultComment(opt,timing,result){
   if(opt.id==="layup"&&(hit==="PERFECT"||hit==="GOOD"))return "安全に運び、フェアウェイをキープ。";
   return `${hit}のショットでフェアウェイをキープ。`;
 }
-function applyShot(opt,timing,rng=Math.random){
-  if(state.complete||isShotAnimating)return;const playedHole=state.hole,wasPutt=state.lie==="green",distanceBefore=state.distance,fromPosition={...state.position},fromGreen=wasPutt?{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}:null;
-  if(wasPutt)state.lastShotOrigin=snapshotShotOrigin(state);
-  if(opt.id==="attack"&&!consumeAttackShot()){showToast("「攻めて打つ」はこのラウンドでは使い切りました。");$(".action-panel").classList.remove("hidden");return}
-  const result=state.lie==="green"?resolvePutt(state,opt,timing,rng):resolveFullShot(state,opt,timing,rng);
-  const toPosition=result.animationPosition||(result.finished?{progress:.98,lateral:0}:{...state.position}),toGreen=wasPutt?(result.finished?{x:180,y:82}:{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}):null;
-  const willPickup=!result.finished&&state.strokes>=holes[playedHole].par+6;
-  if(willPickup){result.title="ピックアップ";result.text="最大スコアでホールアウト";result.outcome="penalty"}
-  result.nextShot=state.strokes+1;const log={stroke:result.shotNumber,type:"shot",choice:opt.name,aim:state.aim,distanceBefore,timing:{grade:timing.grade,deviation:+timing.deviation.toFixed(1),side:timing.side},outcome:result.outcome,title:result.title,text:result.text,origin:state.lastShotOrigin};state.shots[playedHole].push(log);
-  if(result.penalty)state.shots[playedHole].push({stroke:result.shotNumber+1,type:"penalty",choice:"1打罰",outcome:result.outcome,title:"ペナルティ",text:result.text});
-  const plan=createShotAnimation(fromPosition,toPosition,timing,result,wasPutt,fromGreen,toGreen);
-  animateShot(plan,result).then(()=>{
+function setShotLock(locked){shotLocked=locked;document.querySelector("#gamePanel")?.classList.toggle("shot-locked",locked)}
+async function renderCharacterShotAnimation({character,shotType,timingResult,isPutt,missDirection}){
+  const overlay=document.querySelector("#characterActionOverlay"),panel=document.querySelector("#characterActionPanel"),image=document.querySelector("#characterActionImage"),label=document.querySelector("#characterActionLabel"),subLabel=document.querySelector("#characterActionSubLabel");
+  if(!overlay||!panel||!image||!label||!subLabel)return;
+  const labelText=timingResult?.label||"SHOT",typeLabel=isPutt?"パット":shotType==="attack"?"攻めショット":shotType==="layup"?"刻みショット":"通常ショット",duration=isPutt?640:timingResult?.grade==="PERFECT"?820:760;
+  panel.dataset.character=character.id;panel.dataset.grade=timingResult?.grade||"NORMAL";panel.dataset.putt=String(Boolean(isPutt));panel.dataset.miss=missDirection||"center";image.innerHTML=characterImageMarkup(character,"full","character-action-image__asset");label.textContent=labelText;subLabel.textContent=`${character.name} · ${typeLabel}`;overlay.classList.remove("hidden");overlay.classList.remove("active");
+  try{await new Promise(resolve=>{requestAnimationFrame(()=>overlay.classList.add("active"));setTimeout(resolve,duration)})}finally{overlay.classList.remove("active");overlay.classList.add("hidden")}
+}
+async function applyShot(opt,timing,rng=Math.random,alreadyLocked=false){
+  if(state.complete||isShotAnimating||(shotLocked&&!alreadyLocked)){if(alreadyLocked)setShotLock(false);return}if(!alreadyLocked)setShotLock(true);const playedHole=state.hole,wasPutt=state.lie==="green",distanceBefore=state.distance,fromPosition={...state.position},fromGreen=wasPutt?{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}:null;
+  try{
+    if(wasPutt)state.lastShotOrigin=snapshotShotOrigin(state);
+    if(opt.id==="attack"&&!consumeAttackShot()){showToast("「攻めて打つ」はこのラウンドでは使い切りました。");return}
+    const result=state.lie==="green"?resolvePutt(state,opt,timing,rng):resolveFullShot(state,opt,timing,rng);
+    const toPosition=result.animationPosition||(result.finished?{progress:.98,lateral:0}:{...state.position}),toGreen=wasPutt?(result.finished?{x:180,y:82}:{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}):null;
+    const willPickup=!result.finished&&state.strokes>=holes[playedHole].par+6;
+    if(willPickup){result.title="ピックアップ";result.text="最大スコアでホールアウト";result.outcome="penalty"}
+    result.nextShot=state.strokes+1;const log={stroke:result.shotNumber,type:"shot",choice:opt.name,aim:state.aim,distanceBefore,timing:{grade:timing.grade,deviation:+timing.deviation.toFixed(1),side:timing.side},outcome:result.outcome,title:result.title,text:result.text,origin:state.lastShotOrigin};state.shots[playedHole].push(log);
+    if(result.penalty)state.shots[playedHole].push({stroke:result.shotNumber+1,type:"penalty",choice:"1打罰",outcome:result.outcome,title:"ペナルティ",text:result.text});
+    try{await renderCharacterShotAnimation({character:characterById(state.characterId),shotType:opt.id,timingResult:timing,isPutt:wasPutt,missDirection:result.direction||timing.side})}catch{}
+    const plan=createShotAnimation(fromPosition,toPosition,timing,result,wasPutt,fromGreen,toGreen);
+    try{await animateShot(plan,result)}catch{}
     if(result.finished)finishHole();else if(willPickup)finishHole(holes[playedHole].par+6);
-    result.comment=resultComment(opt,timing,result);save();render();showResult(opt,timing,result);$(".action-panel").classList.remove("hidden");
+    result.comment=resultComment(opt,timing,result);save();render();showResult(opt,timing,result);
     if(state.complete)setTimeout(()=>switchView("result"),650);
-  });
+  }finally{setShotLock(false);$(".action-panel").classList.remove("hidden")}
 }
 function finishHole(forced){const idx=state.hole;state.scores[idx]=forced||state.strokes;if(idx===state.roundHoles-1){state.complete=true;state.finalResult=buildFinalResult();return}state.hole++;state.strokes=0;state.lie="tee";state.distance=holes[state.hole].yards;state.position={progress:0,lateral:0};state.greenPosition=null;state.lastShotOrigin=null}
 
@@ -195,10 +205,10 @@ function paintTimingBar(profile){
   $$("#timingZones i").forEach((zone,i)=>{zone.style.flex=`0 0 ${widths[i]}%`;zone.className=`zone-${classes[i]}`});
   $("#timingBar").dataset.profile=profile.key;$("#timingCenterLabel").textContent=`PERFECT ±${profile.perfect}%`;
 }
-function selectShot(opt){if(opt.id==="attack"&&!canUseAttack()){showToast("「攻めて打つ」はこのラウンドでは使い切りました。");return}pendingShot=opt;pendingTimingProfile=timingProfileFor(opt,state);paintTimingBar(pendingTimingProfile);$("#timingShotName").textContent=opt.name;$("#timingGrade").textContent=`${pendingTimingProfile.label} · CENTERを狙え`;$("#timingGrade").className="timing-grade";$("#timingPanel").classList.remove("hidden");$(".action-panel").classList.add("hidden");timingStart=performance.now();cancelAnimationFrame(timingFrame);animateTiming(timingStart);setTimeout(()=>$("#swingButton").scrollIntoView({behavior:"smooth",block:"center"}),80)}
+function selectShot(opt){if(shotLocked||isShotAnimating)return;if(opt.id==="attack"&&!canUseAttack()){showToast("「攻めて打つ」はこのラウンドでは使い切りました。");return}pendingShot=opt;pendingTimingProfile=timingProfileFor(opt,state);paintTimingBar(pendingTimingProfile);$("#timingShotName").textContent=opt.name;$("#timingGrade").textContent=`${pendingTimingProfile.label} · CENTERを狙え`;$("#timingGrade").className="timing-grade";$("#timingPanel").classList.remove("hidden");$(".action-panel").classList.add("hidden");timingStart=performance.now();cancelAnimationFrame(timingFrame);animateTiming(timingStart);setTimeout(()=>$("#swingButton").scrollIntoView({behavior:"smooth",block:"center"}),80)}
 function animateTiming(now){const elapsed=(now-timingStart)%1300,phase=elapsed/1300;timingPosition=phase<.5?phase*200:(1-phase)*200;$("#timingCursor").style.left=`${timingPosition}%`;timingFrame=requestAnimationFrame(animateTiming)}
-function stopTiming(){if(!pendingShot)return;cancelAnimationFrame(timingFrame);const timing=timingResult(timingPosition,pendingTimingProfile);$("#timingGrade").textContent=timing.label;$("#timingGrade").className=`timing-grade grade-${timing.grade.toLowerCase()}`;const opt=pendingShot;pendingShot=null;pendingTimingProfile=null;$("#swingButton").disabled=true;setTimeout(()=>{$("#timingPanel").classList.add("hidden");applyShot(opt,timing);$("#swingButton").disabled=false},380)}
-function cancelTiming(){cancelAnimationFrame(timingFrame);pendingShot=null;pendingTimingProfile=null;$("#timingPanel").classList.add("hidden");$(".action-panel").classList.remove("hidden")}
+function stopTiming(){if(!pendingShot||shotLocked)return;cancelAnimationFrame(timingFrame);const timing=timingResult(timingPosition,pendingTimingProfile);$("#timingGrade").textContent=timing.label;$("#timingGrade").className=`timing-grade grade-${timing.grade.toLowerCase()}`;const opt=pendingShot;pendingShot=null;pendingTimingProfile=null;setShotLock(true);$("#swingButton").disabled=true;setTimeout(()=>{$("#timingPanel").classList.add("hidden");applyShot(opt,timing,Math.random,true);$("#swingButton").disabled=false},380)}
+function cancelTiming(){if(shotLocked)return;cancelAnimationFrame(timingFrame);pendingShot=null;pendingTimingProfile=null;$("#timingPanel").classList.add("hidden");$(".action-panel").classList.remove("hidden")}
 
 function parThrough(n){return holes.slice(0,n).reduce((a,h)=>a+h.par,0)}
 function playerTotal(n=18){return state.scores.slice(0,n).reduce((a,s)=>a+(s||0),0)}
@@ -270,5 +280,5 @@ function returnToStart(){selectedCharacterId=state.characterId||selectedCharacte
 function resetGame(){if(!state.started||confirm("現在のラウンドを終了して、新しく始めますか？")){localStorage.removeItem(STORAGE_KEY);localStorage.removeItem("pga-tour-18-save-v5");localStorage.removeItem("pga-tour-18-save-v4");localStorage.removeItem("pga-tour-18-save-v3");localStorage.removeItem("pga-tour-18-save-v2");localStorage.removeItem("pga-tour-18-save-v1");state={started:false};switchView("play");render()}}
 function showFinal(){const rank=getRanking().findIndex(x=>x.player)+1,rel=playerTotal()-parThrough(18);$("#finalPosition").textContent=formatRank(rank);$("#finalScore").textContent=relative(rel,0);$("#finalScore").className=scoreClass(rel);$("#modalBackdrop").classList.remove("hidden")}
 
-globalThis.PGAEngine={holes,ROUND_MODES,ATTACK_SHOT_LIMIT,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,characterById,aimById,roundModeByHoles,timingProfileFor,timingResult,freshState,migrate,optionsFor,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,rankingForRound,roundStats,bestAndTrouble,buildFinalResult,resultComment};
+globalThis.PGAEngine={holes,ROUND_MODES,ATTACK_SHOT_LIMIT,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,characterById,aimById,roundModeByHoles,timingProfileFor,timingResult,freshState,migrate,optionsFor,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,renderCharacterShotAnimation,setShotLock,rankingForRound,roundStats,bestAndTrouble,buildFinalResult,resultComment};
 $$('[data-view]').forEach(t=>t.onclick=()=>switchView(t.dataset.view));$("#startButton").onclick=startGame;$("#newGameButton").onclick=resetGame;$("#swingButton").onclick=stopTiming;$("#cancelTimingButton").onclick=cancelTiming;$("#viewRankingButton").onclick=()=>{$("#modalBackdrop").classList.add("hidden");switchView("ranking")};$("#closeModalButton").onclick=()=>{$("#modalBackdrop").classList.add("hidden");switchView("score")};$("#playAgainButton").onclick=()=>startAgain();$("#changeCharacterButton").onclick=()=>returnToStart();$("#modeSelectButton").onclick=()=>returnToStart();$("#resultRankingButton").onclick=()=>switchView("ranking");preloadCharacterImages();if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});render();if(state.complete&&state.finalResult)switchView("result");
