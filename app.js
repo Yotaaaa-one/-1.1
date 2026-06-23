@@ -1,7 +1,8 @@
 "use strict";
 
-const STORAGE_KEY = "pga-tour-18-save-v5";
+const STORAGE_KEY = "pga-tour-18-save-v6";
 const ATTACK_SHOT_LIMIT = 6;
+const ROUND_MODES=[{holes:3,label:"3H"},{holes:9,label:"9H"},{holes:18,label:"18H"}];
 const CHARACTERS=[
   {id:"balance",name:"バランスプロ",tag:"BALANCED",description:"すべての能力が平均的で扱いやすい",power:78,accuracy:78,control:78,shortGame:78,putting:78,specialty:"normal",weakness:"なし"},
   {id:"power",name:"パワープロ",tag:"POWER",description:"飛距離が出るが、左右ブレが大きい",power:92,accuracy:62,control:66,shortGame:70,putting:70,specialty:"attack",weakness:"バンカー・細かい距離感"},
@@ -30,7 +31,7 @@ const TIMING_PROFILES={
   puttVeryLong:{key:"putt-very-long",label:"10m+ · EXPERT",perfect:3,good:9,normal:20,miss:38}
 };
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let state=loadState(), resultTimer, timingFrame, timingStart=0, timingPosition=0, pendingShot=null, pendingTimingProfile=null, shotAnimationFrame, isShotAnimating=false, selectedCharacterId="balance";
+let state=loadState(), resultTimer, timingFrame, timingStart=0, timingPosition=0, pendingShot=null, pendingTimingProfile=null, shotAnimationFrame, isShotAnimating=false, selectedCharacterId="balance", selectedRoundHoles=18;
 
 function timingProfileFor(opt,current){
   if(current.lie!=="green"){const base=TIMING_PROFILES[opt.id]||TIMING_PROFILES.normal,character=characterById(current.characterId),specialty=character.specialty===opt.id?1.5:0;return{...base,perfect:base.perfect+specialty,good:base.good+specialty*1.5}}
@@ -44,21 +45,22 @@ function timingResult(position,profile=TIMING_PROFILES.normal){
 }
 function characterById(id){return CHARACTERS.find(character=>character.id===id)||CHARACTERS[0]}
 function aimById(id){return AIM_OPTIONS.find(aim=>aim.id===id)||AIM_OPTIONS[2]}
-function freshState(name="PLAYER",characterId=selectedCharacterId){
+function roundModeByHoles(holesCount){return ROUND_MODES.find(mode=>mode.holes===holesCount)||ROUND_MODES[2]}
+function freshState(name="PLAYER",characterId=selectedCharacterId,roundHoles=selectedRoundHoles){
   const character=characterById(characterId);
   const cpu=cpuNames.map((name,i)=>{const skill=69+Math.floor(Math.random()*22);return{name,skill,scores:simulateCpu(skill),country:["USA","JPN","KOR","ENG","NOR","AUS","SWE"][i%7]}});
-  return{version:5,started:true,complete:false,name:name.trim().toUpperCase()||"PLAYER",characterId:character.id,characterName:character.name,power:character.power,accuracy:character.accuracy,control:character.control,shortGame:character.shortGame,putting:character.putting,aim:"center",lastShotOrigin:null,hole:0,strokes:0,lie:"tee",distance:holes[0].yards,position:{progress:0,lateral:0},greenPosition:null,attackShotsRemaining:ATTACK_SHOT_LIMIT,winds:holes.map(()=>+(1+Math.random()*5).toFixed(1)),scores:Array(18).fill(null),shots:Array.from({length:18},()=>[]),cpu};
+  return{version:6,started:true,complete:false,roundHoles:roundModeByHoles(roundHoles).holes,finalResult:null,name:name.trim().toUpperCase()||"PLAYER",characterId:character.id,characterName:character.name,power:character.power,accuracy:character.accuracy,control:character.control,shortGame:character.shortGame,putting:character.putting,aim:"center",lastShotOrigin:null,hole:0,strokes:0,lie:"tee",distance:holes[0].yards,position:{progress:0,lateral:0},greenPosition:null,attackShotsRemaining:ATTACK_SHOT_LIMIT,winds:holes.map(()=>+(1+Math.random()*5).toFixed(1)),scores:Array(18).fill(null),shots:Array.from({length:18},()=>[]),cpu};
 }
 function migrate(saved){
   if(!saved?.started)return saved||{started:false};
-  const character=characterById(saved.characterId);saved.version=5;saved.characterId ||= character.id;saved.characterName ||= character.name;saved.control ??= saved.accuracy||character.control;saved.shortGame ??= character.shortGame;saved.putting ??= character.putting;saved.aim ||= "center";saved.lastShotOrigin ||= null;
+  const character=characterById(saved.characterId);saved.version=6;saved.roundHoles=roundModeByHoles(saved.roundHoles).holes;saved.finalResult ||= null;saved.characterId ||= character.id;saved.characterName ||= character.name;saved.control ??= saved.accuracy||character.control;saved.shortGame ??= character.shortGame;saved.putting ??= character.putting;saved.aim ||= "center";saved.lastShotOrigin ||= null;
   saved.position ||= {progress:Math.max(0,1-(saved.distance||holes[saved.hole].yards)/holes[saved.hole].yards),lateral:0};
   saved.greenPosition ||= saved.lie==="green"?greenPointForDistance(saved.distance,"center"):null;
   saved.attackShotsRemaining=Math.max(0,Math.min(ATTACK_SHOT_LIMIT,Number.isFinite(saved.attackShotsRemaining)?saved.attackShotsRemaining:ATTACK_SHOT_LIMIT));
   saved.winds ||= holes.map(()=>+(1+Math.random()*5).toFixed(1));saved.shots ||= Array.from({length:18},()=>[]);return saved;
 }
 function simulateCpu(skill){return holes.map(h=>{const r=Math.random()+(skill-78)*.045-(h.difficulty-3)*.16;return r>.88?h.par-2:r>.56?h.par-1:r>.17?h.par:r>-.13?h.par+1:h.par+2})}
-function loadState(){try{return migrate(JSON.parse(localStorage.getItem(STORAGE_KEY))||JSON.parse(localStorage.getItem("pga-tour-18-save-v4"))||JSON.parse(localStorage.getItem("pga-tour-18-save-v3"))||JSON.parse(localStorage.getItem("pga-tour-18-save-v2"))||JSON.parse(localStorage.getItem("pga-tour-18-save-v1")))}catch{return{started:false}}}
+function loadState(){try{return migrate(JSON.parse(localStorage.getItem(STORAGE_KEY))||JSON.parse(localStorage.getItem("pga-tour-18-save-v5"))||JSON.parse(localStorage.getItem("pga-tour-18-save-v4"))||JSON.parse(localStorage.getItem("pga-tour-18-save-v3"))||JSON.parse(localStorage.getItem("pga-tour-18-save-v2"))||JSON.parse(localStorage.getItem("pga-tour-18-save-v1")))}catch{return{started:false}}}
 function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
 function optionsFor(current){
   if(current.lie==="green")return[{id:"putt",name:"パットする",desc:puttDifficultyLabel(current.distance),risk:0,power:1,recommended:true}];
@@ -74,6 +76,10 @@ function puttDifficultyLabel(distance){return distance<=1?"ショートパット
 function renderCharacterOptions(){
   $("#characterOptions").innerHTML=CHARACTERS.map(character=>`<button class="character-option ${character.id===selectedCharacterId?"selected":""}" data-character="${character.id}"><header><strong>${character.name}</strong><span>${character.tag}</span></header><p>${character.description}</p><div class="character-stats"><span>PWR<b>${character.power}</b></span><span>ACC<b>${character.accuracy}</b></span><span>CTL<b>${character.control}</b></span><span>SG<b>${character.shortGame}</b></span><span>PUTT<b>${character.putting}</b></span></div></button>`).join("");
   $$('[data-character]').forEach(button=>button.onclick=()=>{selectedCharacterId=button.dataset.character;renderCharacterOptions()});
+}
+function renderModeOptions(){
+  $("#modeOptions").innerHTML=ROUND_MODES.map(mode=>`<button class="mode-option ${mode.holes===selectedRoundHoles?"selected":""}" data-mode="${mode.holes}">${mode.label}<b>${mode.holes} HOLES</b></button>`).join("");
+  $$('[data-mode]').forEach(button=>button.onclick=()=>{selectedRoundHoles=Number(button.dataset.mode);renderModeOptions()});
 }
 function renderAimOptions(){const currentAim=aimById(state.aim);$("#aimLabel").textContent=currentAim.name;$("#aimOptions").innerHTML=AIM_OPTIONS.map(aim=>`<button class="aim-button ${aim.id===state.aim?"selected":""}" data-aim="${aim.id}">${aim.name}</button>`).join("");$$('[data-aim]').forEach(button=>button.onclick=()=>{state.aim=button.dataset.aim;save();render()})}
 
@@ -163,22 +169,23 @@ function resultComment(opt,timing,result){
   return `${hit}のショットでフェアウェイをキープ。`;
 }
 function applyShot(opt,timing,rng=Math.random){
-  if(state.complete||isShotAnimating)return;const playedHole=state.hole,wasPutt=state.lie==="green",fromPosition={...state.position},fromGreen=wasPutt?{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}:null;
+  if(state.complete||isShotAnimating)return;const playedHole=state.hole,wasPutt=state.lie==="green",distanceBefore=state.distance,fromPosition={...state.position},fromGreen=wasPutt?{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}:null;
   if(wasPutt)state.lastShotOrigin=snapshotShotOrigin(state);
   if(opt.id==="attack"&&!consumeAttackShot()){showToast("「攻めて打つ」はこのラウンドでは使い切りました。");$(".action-panel").classList.remove("hidden");return}
   const result=state.lie==="green"?resolvePutt(state,opt,timing,rng):resolveFullShot(state,opt,timing,rng);
   const toPosition=result.animationPosition||(result.finished?{progress:.98,lateral:0}:{...state.position}),toGreen=wasPutt?(result.finished?{x:180,y:82}:{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}):null;
   const willPickup=!result.finished&&state.strokes>=holes[playedHole].par+6;
   if(willPickup){result.title="ピックアップ";result.text="最大スコアでホールアウト";result.outcome="penalty"}
-  result.nextShot=state.strokes+1;const log={stroke:result.shotNumber,type:"shot",choice:opt.name,aim:state.aim,timing:{grade:timing.grade,deviation:+timing.deviation.toFixed(1),side:timing.side},outcome:result.outcome,title:result.title,text:result.text,origin:state.lastShotOrigin};state.shots[playedHole].push(log);
+  result.nextShot=state.strokes+1;const log={stroke:result.shotNumber,type:"shot",choice:opt.name,aim:state.aim,distanceBefore,timing:{grade:timing.grade,deviation:+timing.deviation.toFixed(1),side:timing.side},outcome:result.outcome,title:result.title,text:result.text,origin:state.lastShotOrigin};state.shots[playedHole].push(log);
   if(result.penalty)state.shots[playedHole].push({stroke:result.shotNumber+1,type:"penalty",choice:"1打罰",outcome:result.outcome,title:"ペナルティ",text:result.text});
   const plan=createShotAnimation(fromPosition,toPosition,timing,result,wasPutt,fromGreen,toGreen);
   animateShot(plan,result).then(()=>{
     if(result.finished)finishHole();else if(willPickup)finishHole(holes[playedHole].par+6);
     result.comment=resultComment(opt,timing,result);save();render();showResult(opt,timing,result);$(".action-panel").classList.remove("hidden");
+    if(state.complete)setTimeout(()=>switchView("result"),650);
   });
 }
-function finishHole(forced){const idx=state.hole;state.scores[idx]=forced||state.strokes;if(idx===17){state.complete=true;setTimeout(showFinal,500);return}state.hole++;state.strokes=0;state.lie="tee";state.distance=holes[state.hole].yards;state.position={progress:0,lateral:0};state.greenPosition=null;state.lastShotOrigin=null}
+function finishHole(forced){const idx=state.hole;state.scores[idx]=forced||state.strokes;if(idx===state.roundHoles-1){state.complete=true;state.finalResult=buildFinalResult();return}state.hole++;state.strokes=0;state.lie="tee";state.distance=holes[state.hole].yards;state.position={progress:0,lateral:0};state.greenPosition=null;state.lastShotOrigin=null}
 
 function paintTimingBar(profile){
   const widths=[(100-profile.miss)/2,(profile.miss-profile.normal)/2,(profile.normal-profile.good)/2,(profile.good-profile.perfect)/2,profile.perfect,(profile.good-profile.perfect)/2,(profile.normal-profile.good)/2,(profile.miss-profile.normal)/2,(100-profile.miss)/2];
@@ -200,6 +207,22 @@ function cpuScoreAt(cpu,thru){return cpu.scores.slice(0,thru).reduce((a,b)=>a+b,
 function setScoreEl(el,n){el.textContent=relative(n,0);el.className=scoreClass(n)}
 function formatRank(n){return n<=3?["1st","2nd","3rd"][n-1]:`T${n}`}
 function getRanking(){const thru=completedHoles();return[...state.cpu.map(c=>({name:c.name,rel:cpuScoreAt(c,thru),thru:state.complete?"F":thru,country:c.country})),{name:state.name,rel:playerTotal(thru)-parThrough(thru),thru:state.complete?"F":thru,country:"YOU",player:true}].sort((a,b)=>a.rel-b.rel)}
+function rankingForRound(roundHoles,source=state){const par=parThrough(roundHoles),playerTotalForRound=source.scores.slice(0,roundHoles).reduce((sum,score)=>sum+(score||0),0);return[...source.cpu.map(cpu=>{const total=cpu.scores.slice(0,roundHoles).reduce((sum,score)=>sum+score,0);return{name:cpu.name,country:cpu.country,score:total-par,total,thru:"F"}}),{name:source.name,country:"YOU",score:playerTotalForRound-par,total:playerTotalForRound,thru:"F",player:true}].sort((a,b)=>a.score-b.score).map((row,index)=>({...row,rank:index+1}))}
+function roundStats(roundHoles,source=state){
+  const scores=source.scores.slice(0,roundHoles),logs=source.shots.slice(0,roundHoles).flatMap((holeShots,holeIndex)=>holeShots.filter(shot=>shot.type==="shot").map(shot=>({...shot,hole:holeIndex+1}))),fullShots=logs.filter(log=>log.choice!=="パットする"),putts=logs.filter(log=>log.choice==="パットする"),attackShots=logs.filter(log=>log.choice==="攻めて打つ"),parOn=fullShots.filter(log=>log.outcome==="green").length;
+  const stat={birdies:0,pars:0,bogeys:0,doubles:0,ob:logs.filter(log=>log.outcome==="ob").length,wh:logs.filter(log=>log.outcome==="wh").length,bunkers:logs.filter(log=>log.outcome==="bunker").length,fairwayRate:fullShots.length?Math.round(logs.filter(log=>log.outcome==="fairway").length/fullShots.length*100):0,greenRate:roundHoles?Math.round(parOn/roundHoles*100):0,totalPutts:putts.length,averagePutts:roundHoles?+(putts.length/roundHoles).toFixed(1):0,attackUsed:attackShots.length,attackSuccess:attackShots.length?Math.round(attackShots.filter(log=>log.outcome==="green"||log.outcome==="fairway").length/attackShots.length*100):0};
+  scores.forEach((score,index)=>{const diff=score-holes[index].par;if(diff<=-1)stat.birdies++;else if(diff===0)stat.pars++;else if(diff===1)stat.bogeys++;else stat.doubles++});return{...stat,logs};
+}
+function shotLabel(log){return `${log.hole}H 第${log.stroke}打`}
+function bestAndTrouble(stats){
+  const best=stats.logs.map(log=>{let value=0;if(log.choice==="攻めて打つ"&&log.timing?.grade==="PERFECT"&&log.outcome==="green")value=120;else if(log.choice==="パットする"&&log.outcome==="cup")value=95+(log.distanceBefore||0);else if(log.outcome==="green"&&log.timing?.grade==="PERFECT")value=85;else if(log.outcome==="fairway"&&log.timing?.grade==="GOOD")value=55;return{...log,value}}).sort((a,b)=>b.value-a.value)[0];
+  const trouble=stats.logs.map(log=>{let value=0;if(log.outcome==="ob")value=120;else if(log.outcome==="wh")value=115;else if(log.outcome==="bunker")value=75;else if(log.timing?.grade==="BAD")value=60;return{...log,value}}).sort((a,b)=>b.value-a.value)[0];
+  return{best:best?.value?best:null,trouble:trouble?.value?trouble:null};
+}
+function roundEvaluation(rank){return rank===1?"WINNER":rank<=3?"PODIUM FINISH":rank<=10?"TOP10 FINISH":"FINISH"}
+function pgaComment(rank,stats){if(rank===1)return"見事な優勝です！フィールドを引っ張る堂々たるラウンドでした。";if(stats.ob+stats.wh>=2)return"狙い方向を少し安全にすると、さらに安定しそうです。";if(stats.averagePutts>=2.1)return"グリーン上で少し苦戦しました。距離感を丁寧に合わせましょう。";if(stats.attackUsed>=2&&stats.attackSuccess>=70)return"攻めどころの判断が光りました。大胆さがスコアにつながっています。";if(stats.birdies>=2)return"チャンスをしっかり決めました。バーディの量産が素晴らしいです。";if(rank<=10)return"安定したプレーでした。次は表彰台を狙えます。";return"最後まで戦い抜きました。次のラウンドでリベンジしましょう。"}
+function buildFinalResult(source=state){const roundHoles=source.roundHoles,scores=source.scores.slice(0,roundHoles),par=parThrough(roundHoles),ranking=rankingForRound(roundHoles,source),player=ranking.find(row=>row.player),stats=roundStats(roundHoles,source),stories=bestAndTrouble(stats);return{mode:roundModeByHoles(roundHoles).label,roundHoles,characterName:source.characterName,characterId:source.characterId,rank:player.rank,total:player.total,toPar:player.score,thru:roundHoles,scores,par,evaluation:roundEvaluation(player.rank),stats,bestShot:stories.best,troubleShot:stories.trouble,ranking:pgaSafeRanking(ranking),comment:pgaComment(player.rank,stats)}}
+function pgaSafeRanking(ranking){return ranking.map(row=>({rank:row.rank,name:row.name,country:row.country,score:row.score,total:row.total,thru:row.thru,player:Boolean(row.player)}))}
 function showResult(opt,timing,result){clearTimeout(resultTimer);$("#resultTitle").textContent=`${opt.name} × ${timing.grade}`;$("#resultText").textContent=result.comment;$("#resultIcon").textContent=result.outcome==="cup"?"◆":result.outcome==="ob"||result.outcome==="wh"||result.outcome==="penalty"?"!":"●";$("#resultBanner").classList.remove("hidden");resultTimer=setTimeout(()=>$("#resultBanner").classList.add("hidden"),3200)}
 function showToast(message){document.querySelector(".toast")?.remove();const toast=document.createElement("div");toast.className="toast";toast.textContent=message;document.body.append(toast);setTimeout(()=>toast.remove(),2500)}
 
@@ -216,21 +239,34 @@ function renderGreen(h){
   $("#greenBallMarker").setAttribute("transform",`translate(${ball.x} ${ball.y})`);$("#greenPuttLine").setAttribute("d",`M ${ball.x} ${ball.y} Q ${(ball.x+cup.x)/2+(h.leftRisk-h.rightRisk)*4} ${(ball.y+cup.y)/2-10} ${cup.x} ${cup.y}`);
   $("#greenDistance").textContent=`${Number(state.distance).toFixed(1)}m`;$("#greenHoleNumber").textContent=h.number;$("#greenStrokes").textContent=state.strokes;$("#greenSlopeText").textContent=`${slope} ${(1.2+h.difficulty*.25).toFixed(1)}°`;
 }
+function resultScoreCell(score,par){const diff=score-par;return`<span class="${diff<0?"under":diff>0?"over":"even"}">${score}</span>`}
+function renderResult(){
+  const result=state.finalResult;if(!result)return;$("#resultModeLabel").textContent=`${result.mode} ROUND RESULT`;$("#resultGrade").textContent=result.evaluation;$("#resultCharacter").textContent=result.characterName;$("#resultRank").textContent=formatRank(result.rank);$("#resultTotal").textContent=result.total;$("#resultThru").textContent=result.thru;setScoreEl($("#resultToPar"),result.toPar);
+  const hs=holes.slice(0,result.roundHoles),out=result.scores.slice(0,Math.min(9,result.roundHoles)).reduce((sum,score)=>sum+score,0),inScore=result.roundHoles===18?result.scores.slice(9,18).reduce((sum,score)=>sum+score,0):null;
+  $("#resultScorecard").innerHTML=`<table class="result-score-table"><thead><tr><th>HOLE</th>${hs.map(h=>`<th>${h.number}</th>`).join("")}<th class="total-cell">TOTAL</th></tr></thead><tbody><tr><td>PAR</td>${hs.map(h=>`<td>${h.par}</td>`).join("")}<td class="total-cell">${result.par}</td></tr><tr><td>SCORE</td>${result.scores.map((score,index)=>`<td class="score-cell">${resultScoreCell(score,hs[index].par)}</td>`).join("")}<td class="total-cell">${result.total}</td></tr></tbody></table><div class="result-total-line result-card-total"><span>${result.roundHoles>=9?`OUT <b>${out}</b>`:""}</span><span>${inScore!==null?`IN <b>${inScore}</b>`:""}</span><span>±PAR <b class="${scoreClass(result.toPar)}">${relative(result.toPar,0)}</b></span></div>`;
+  const statItems=[["BIRDIE",result.stats.birdies],["PAR",result.stats.pars],["BOGEY",result.stats.bogeys],["DBL+",result.stats.doubles],["OB",result.stats.ob],["WH",result.stats.wh],["BUNKER",result.stats.bunkers],["FW KEEP",`${result.stats.fairwayRate}%`],["GIR",`${result.stats.greenRate}%`],["PUTTS",result.stats.totalPutts],["AVG PUTT",result.stats.averagePutts],["ATTACK",`${result.stats.attackUsed}/${result.stats.attackSuccess}%`]];
+  $("#resultStats").innerHTML=statItems.map(([label,value])=>`<div class="stat-card"><span>${label}</span><b>${value}</b></div>`).join("");
+  const best=result.bestShot,trouble=result.troubleShot;$("#bestShotTitle").textContent=best?`${shotLabel(best)} · ${best.choice} × ${best.timing.grade}`:"安定したラウンド";$("#bestShotText").textContent=best?`${best.text}${best.distanceBefore?`（開始時 ${best.distanceBefore}${best.choice==="パットする"?"m":"Y"}）`:""}`:"大きなチャンスを着実にまとめました。";$("#troubleShotTitle").textContent=trouble?`${shotLabel(trouble)} · ${trouble.choice} × ${trouble.timing.grade}`:"大きなトラブルなし";$("#troubleShotText").textContent=trouble?trouble.text:"大きなミスを避けてプレーできました。";
+  const topRanking=result.ranking.slice(0,5),playerRow=result.ranking.find(row=>row.player),displayRanking=playerRow&&playerRow.rank>5?[...topRanking,playerRow]:topRanking;$("#pgaComment").textContent=`PGA君: ${result.comment}`;$("#resultRanking").innerHTML=displayRanking.map(row=>`<div class="result-ranking-row ${row.player?"player":""}"><div>${formatRank(row.rank)}</div><div class="result-rank-name">${row.name}<small>${row.player?"PLAYER":row.country}</small></div><div class="result-rank-score ${scoreClass(row.score)}">${relative(row.score,0)}</div><div class="result-rank-total">${row.total}</div></div>`).join("");
+}
 function render(){
-  $("#startPanel").classList.toggle("hidden",state.started);$("#gamePanel").classList.toggle("hidden",!state.started);if(!state.started){renderCharacterOptions();renderEmptyScore();return}
+  $("#startPanel").classList.toggle("hidden",state.started);$("#gamePanel").classList.toggle("hidden",!state.started);if(!state.started){renderModeOptions();renderCharacterOptions();renderEmptyScore();return}
   const h=holes[state.hole],thru=completedHoles(),pRel=playerTotal(thru)-parThrough(thru),ranking=getRanking();$("#playerPosition").textContent=formatRank(ranking.findIndex(x=>x.player)+1);setScoreEl($("#liveScore"),pRel);$("#thruValue").textContent=state.complete?"F":thru||"—";
   $("#holeNumber").textContent=h.number;$("#holePar").textContent=`PAR ${h.par}`;$("#holeYards").textContent=`${h.yards} YDS`;$("#difficultyLabel").textContent=["EASY","FAIR","STANDARD","TOUGH","HARD"][h.difficulty-1];$("#shotNumber").textContent=state.strokes+1;
   $("#lieValue").textContent={tee:"TEE",fairway:"FAIRWAY",rough:"ROUGH",bunker:"BUNKER",green:"GREEN"}[state.lie];$("#distanceValue").textContent=state.lie==="green"?`${state.distance}m`:`${state.distance}y`;$("#distancePill").textContent=`${state.distance} ${state.lie==="green"?"M":"YDS"}`;$("#abilityText").textContent=`POWER ${state.power} · ACCURACY ${state.accuracy} · CONTROL ${state.control}`;$("#characterStatus").textContent=`PLAYER · ${state.characterName}`;renderCourse(h);
   const attacks=state.attackShotsRemaining,opts=optionsFor(state);$("#attackCounter").innerHTML=`攻め残り <b>${attacks}</b> / ${ATTACK_SHOT_LIMIT}`;$("#attackCounter").classList.toggle("hidden",state.lie==="green");$("#aimPanel").classList.toggle("hidden",state.lie==="green");if(state.lie!=="green")renderAimOptions();$(".section-title span").textContent=state.lie==="green"?"PUTT":"SELECT SHOT";
   $("#shotOptions").innerHTML=opts.map((o,i)=>{const unavailable=o.id==="attack"&&attacks<=0;const detail=o.id==="attack"?`${o.desc} · 残り${attacks}回`:o.desc;return`<button class="shot-button ${o.recommended?"recommended":""} ${unavailable?"unavailable":""}" data-shot="${i}" aria-disabled="${unavailable}"><strong>${o.name}</strong><span>${detail}</span></button>`}).join("");$$('[data-shot]').forEach((b,i)=>b.onclick=()=>selectShot(opts[i]));renderScorecard();renderRanking();
+  if(state.complete)renderResult();
 }
 function renderRanking(){const list=getRanking();$("#rankingList").innerHTML=list.map((r,i)=>`<div class="ranking-row ${r.player?"player":""}"><div class="rank-pos">${formatRank(i+1)}</div><div class="rank-name">${r.name}<small>${r.player?"PLAYER":"CPU"} · ${r.country}</small></div><div class="rank-thru">${r.thru||"—"}</div><div class="rank-total ${scoreClass(r.rel)}">${relative(r.rel,0)}</div></div>`).join("")}
 function renderScorecard(){const out=state.scores.slice(0,9).filter(Number.isFinite),inn=state.scores.slice(9).filter(Number.isFinite),total=playerTotal(),done=completedHoles();$("#scorecardName").textContent=state.name;$("#outScore").textContent=out.length===9?out.reduce((a,b)=>a+b,0):"—";$("#inScore").textContent=inn.length===9?inn.reduce((a,b)=>a+b,0):"—";$("#totalScore").textContent=done?total:"—";setScoreEl($("#scoreToPar"),total-parThrough(done));const makeNine=start=>{const hs=holes.slice(start,start+9);return`<thead><tr><th>HOLE</th>${hs.map(h=>`<th>${h.number}</th>`).join("")}<th class="nine-total">${start?"IN":"OUT"}</th></tr></thead><tbody><tr><td>PAR</td>${hs.map(h=>`<td>${h.par}</td>`).join("")}<td class="nine-total">${hs.reduce((a,h)=>a+h.par,0)}</td></tr><tr><td>SCORE</td>${hs.map(h=>{const s=state.scores[h.number-1];if(!Number.isFinite(s))return"<td>—</td>";const d=s-h.par;return`<td class="score-cell"><span class="${d<0?"under":d>0?"over":"even"}">${s}</span></td>`}).join("")}<td class="nine-total">${state.scores.slice(start,start+9).every(Number.isFinite)?state.scores.slice(start,start+9).reduce((a,b)=>a+b,0):"—"}</td></tr></tbody>`};$("#scorecardTable").innerHTML=makeNine(0)+makeNine(9)}
 function renderEmptyScore(){$("#scorecardTable").innerHTML="";["#outScore","#inScore","#totalScore"].forEach(x=>$(x).textContent="—");$("#scoreToPar").textContent="E";$("#rankingList").innerHTML='<div class="ranking-row"><div>—</div><div class="rank-name">ラウンド開始前<small>PLAYタブから開始してください</small></div></div>'}
-function switchView(name){cancelTiming();$$('[data-view]').forEach(t=>t.classList.toggle("active",t.dataset.view===name));$$('.view').forEach(v=>v.classList.toggle("active",v.id===`${name}View`));window.scrollTo(0,0)}
-function startGame(){state=freshState($("#playerNameInput").value,selectedCharacterId);save();render()}
-function resetGame(){if(!state.started||confirm("現在のラウンドを終了して、新しく始めますか？")){localStorage.removeItem(STORAGE_KEY);localStorage.removeItem("pga-tour-18-save-v4");localStorage.removeItem("pga-tour-18-save-v3");localStorage.removeItem("pga-tour-18-save-v2");localStorage.removeItem("pga-tour-18-save-v1");state={started:false};switchView("play");render()}}
+function switchView(name){cancelTiming();$$('[data-view]').forEach(t=>t.classList.toggle("active",t.dataset.view===name));$$('.view').forEach(v=>v.classList.toggle("active",v.id===`${name}View`));if(name==="result")renderResult();window.scrollTo(0,0)}
+function startGame(){state=freshState($("#playerNameInput").value,selectedCharacterId,selectedRoundHoles);save();render()}
+function startAgain(characterId=state.characterId,roundHoles=state.roundHoles){const name=state.name;selectedCharacterId=characterId;selectedRoundHoles=roundHoles;state=freshState(name,characterId,roundHoles);save();switchView("play");render()}
+function returnToStart(){selectedCharacterId=state.characterId||selectedCharacterId;selectedRoundHoles=state.roundHoles||selectedRoundHoles;state={started:false};[STORAGE_KEY,"pga-tour-18-save-v5","pga-tour-18-save-v4","pga-tour-18-save-v3","pga-tour-18-save-v2","pga-tour-18-save-v1"].forEach(key=>localStorage.removeItem(key));switchView("play");render()}
+function resetGame(){if(!state.started||confirm("現在のラウンドを終了して、新しく始めますか？")){localStorage.removeItem(STORAGE_KEY);localStorage.removeItem("pga-tour-18-save-v5");localStorage.removeItem("pga-tour-18-save-v4");localStorage.removeItem("pga-tour-18-save-v3");localStorage.removeItem("pga-tour-18-save-v2");localStorage.removeItem("pga-tour-18-save-v1");state={started:false};switchView("play");render()}}
 function showFinal(){const rank=getRanking().findIndex(x=>x.player)+1,rel=playerTotal()-parThrough(18);$("#finalPosition").textContent=formatRank(rank);$("#finalScore").textContent=relative(rel,0);$("#finalScore").className=scoreClass(rel);$("#modalBackdrop").classList.remove("hidden")}
 
-globalThis.PGAEngine={holes,ATTACK_SHOT_LIMIT,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,characterById,aimById,timingProfileFor,timingResult,freshState,migrate,optionsFor,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,resultComment};
-$$('[data-view]').forEach(t=>t.onclick=()=>switchView(t.dataset.view));$("#startButton").onclick=startGame;$("#newGameButton").onclick=resetGame;$("#swingButton").onclick=stopTiming;$("#cancelTimingButton").onclick=cancelTiming;$("#viewRankingButton").onclick=()=>{$("#modalBackdrop").classList.add("hidden");switchView("ranking")};$("#closeModalButton").onclick=()=>{$("#modalBackdrop").classList.add("hidden");switchView("score")};if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});render();
+globalThis.PGAEngine={holes,ROUND_MODES,ATTACK_SHOT_LIMIT,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,characterById,aimById,roundModeByHoles,timingProfileFor,timingResult,freshState,migrate,optionsFor,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,rankingForRound,roundStats,bestAndTrouble,buildFinalResult,resultComment};
+$$('[data-view]').forEach(t=>t.onclick=()=>switchView(t.dataset.view));$("#startButton").onclick=startGame;$("#newGameButton").onclick=resetGame;$("#swingButton").onclick=stopTiming;$("#cancelTimingButton").onclick=cancelTiming;$("#viewRankingButton").onclick=()=>{$("#modalBackdrop").classList.add("hidden");switchView("ranking")};$("#closeModalButton").onclick=()=>{$("#modalBackdrop").classList.add("hidden");switchView("score")};$("#playAgainButton").onclick=()=>startAgain();$("#changeCharacterButton").onclick=()=>returnToStart();$("#modeSelectButton").onclick=()=>returnToStart();$("#resultRankingButton").onclick=()=>switchView("ranking");if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});render();if(state.complete&&state.finalResult)switchView("result");

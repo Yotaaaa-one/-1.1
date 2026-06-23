@@ -35,6 +35,10 @@
           <p class="eyebrow">ONE PLAYER CHAMPIONSHIP</p>
           <h1>最終ホールまで、<br>一打ずつ勝負する。</h1>
           <p>能力値と判断で20人のフィールドに挑戦。すべてのショットがスコアカードに残ります。</p>
+          <section class="mode-picker" aria-label="プレーモード選択">
+            <div class="picker-heading"><span>SELECT MODE</span><small>HOLES</small></div>
+            <div class="mode-options" id="modeOptions"></div>
+          </section>
           <section class="character-picker" aria-label="プレイヤーキャラクター選択">
             <div class="picker-heading"><span>SELECT PRO</span><small>3 CHARACTERS</small></div>
             <div class="character-options" id="characterOptions"></div>
@@ -133,6 +137,40 @@
             <div class="character-status" id="characterStatus">PLAYER · バランスプロ</div>
             <div class="shot-grid" id="shotOptions"></div>
           </section>
+        </div>
+      </section>
+
+      <section id="resultView" class="view result-view" aria-label="ラウンド結果">
+        <div class="result-hero" id="resultHero">
+          <p id="resultModeLabel">18 HOLE RESULT</p>
+          <span class="result-grade" id="resultGrade">WINNER</span>
+          <h2 id="resultCharacter">バランスプロ</h2>
+          <div class="result-main-score"><span id="resultRank">1st</span><strong id="resultToPar">-5</strong></div>
+          <div class="result-total-line"><span>TOTAL <b id="resultTotal">67</b></span><span>THRU <b id="resultThru">18</b></span></div>
+        </div>
+        <section class="result-section">
+          <h3>SCORECARD</h3>
+          <div class="result-scorecard" id="resultScorecard"></div>
+        </section>
+        <section class="result-section">
+          <h3>TODAY'S STATS</h3>
+          <div class="result-stats" id="resultStats"></div>
+        </section>
+        <section class="result-section shot-story-grid">
+          <article class="shot-story best"><span>BEST SHOT</span><h3 id="bestShotTitle">—</h3><p id="bestShotText">—</p></article>
+          <article class="shot-story trouble"><span>TROUBLE SHOT</span><h3 id="troubleShotTitle">—</h3><p id="troubleShotText">—</p></article>
+        </section>
+        <section class="pga-comment" id="pgaComment">PGA君コメント</section>
+        <section class="result-section">
+          <h3>FINAL RANKING</h3>
+          <div class="result-ranking-head"><span>POS</span><span>PLAYER</span><span>SCORE</span><span>TOTAL</span></div>
+          <div class="result-ranking" id="resultRanking"></div>
+        </section>
+        <div class="result-actions">
+          <button class="primary-button" id="playAgainButton">もう一度プレー</button>
+          <button class="secondary-button" id="changeCharacterButton">キャラを変えて再挑戦</button>
+          <button class="secondary-button" id="modeSelectButton">モード選択へ戻る</button>
+          <button class="secondary-button" id="resultRankingButton">ランキングを見る</button>
         </div>
       </section>
 
