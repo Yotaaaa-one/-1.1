@@ -45,9 +45,9 @@ const holes=URBAN_HOLE_DATA.map((hole,index)=>({number:index+1,...hole,...URBAN_
 const cpuNames=["R. MORIKAWA","J. THOMAS","S. KIM","T. FLEETWOOD","H. MATSUYAMA","V. HOVLAND","X. SCHAUFFELE","S. THEEGALA","M. FITZPATRICK","C. SMITH","T. HATTON","W. CLARK","P. CANTLAY","J. DAY","A. SCOTT","B. KOEPKA","L. ÅBERG","S. IM","K. BRADLEY","T. FINAU"];
 const GRADE_INFO={PERFECT:{label:"PERFECT SHOT!",quality:1},GOOD:{label:"GOOD SHOT",quality:.78},NORMAL:{label:"NORMAL SHOT",quality:.52},MISS:{label:"MISS HIT",quality:.25},BAD:{label:"BAD SHOT",quality:0}};
 const TIMING_PROFILES={
-  normal:{key:"normal",label:"STANDARD",perfect:6,good:16,normal:30,miss:45},
-  attack:{key:"attack",label:"HIGH RISK",perfect:4,good:12,normal:25,miss:40},
-  layup:{key:"layup",label:"SAFE",perfect:12,good:26,normal:40,miss:52},
+  normal:{key:"normal",label:"STANDARD",perfect:8,good:20,normal:32,miss:48},
+  attack:{key:"attack",label:"HIGH RISK",perfect:5,good:15,normal:28,miss:44},
+  layup:{key:"layup",label:"SAFE",perfect:14,good:30,normal:43,miss:55},
   puttShort:{key:"putt-short",label:"1m以内 · EASY",perfect:18,good:48,normal:70,miss:90},
   puttNear:{key:"putt-near",label:"2–3m · WIDE",perfect:13,good:34,normal:58,miss:80},
   puttStandard:{key:"putt-standard",label:"4–6m · STANDARD",perfect:6,good:16,normal:30,miss:45},
@@ -160,19 +160,30 @@ function lieMultiplierFor(lie,opt,rng=Math.random){const safe=opt.id==="layup",a
 function finalDirectionFor(current,timing,h){const aim=aimById(current.aim),timingSide=timing.side==="left"?-1:timing.side==="right"?1:0;const lieSpread=current.lie==="bunker"?1.45:current.lie==="rough"?1.17:current.lie==="fairway"?.86:1;const gradeSpread={PERFECT:.015,GOOD:.07,NORMAL:.15,MISS:.31,BAD:.54}[timing.grade];const precision=Math.max(.55,1-(current.accuracy-60)*.009-(current.control-60)*.005);const windDirection=current.hole%2?-1:1;const windDrift=windDirection*(current.winds[current.hole]-1)*(h.windFactor||1)*.018;const value=Math.max(-1.15,Math.min(1.15,aim.value+timingSide*gradeSpread*lieSpread*precision+windDrift));return{aim,value,side:value<-.14?"left":value>.14?"right":"center",error:Math.abs(value-aim.value)}}
 function approachTravelFor(origin,opt,timing,current,rng=Math.random){
   const remaining=Number(origin.distance)||0;if(origin.lie==="tee"||remaining>120)return null;
-  const targetRatio={PERFECT:.99,GOOD:.90,NORMAL:.74,MISS:.52,BAD:.28}[timing.grade]||.6;
-  const shotAdjustment=opt.id==="attack"?.06:opt.id==="layup"?-.05:0;
+  const targetRatio={PERFECT:1.02,GOOD:.96,NORMAL:.78,MISS:.56,BAD:.28}[timing.grade]||.6;
+  const shotAdjustment=opt.id==="attack"?.07:opt.id==="layup"?-.04:0;
   const shortGame=(current.shortGame||75)-75;
-  const lieFactor=origin.lie==="bunker"?.66+shortGame*.003:origin.lie==="rough"?.86+shortGame*.0025:1;
+  const lieFactor=origin.lie==="bunker"?.70+shortGame*.003:origin.lie==="rough"?.89+shortGame*.0025:1;
   let travel=remaining*Math.max(.12,targetRatio+shotAdjustment)*lieFactor*(.96+rng()*.08);
   if(timing.grade==="PERFECT"||timing.grade==="GOOD"){
-    const baseGuard=remaining>=80?.70:remaining>=50?.75:remaining>=20?.70:.86;
-    const lieGuard=origin.lie==="bunker"?(timing.grade==="PERFECT"?.64:.54):origin.lie==="rough"?.84:1;
+    const baseGuard=remaining>=80?.78:remaining>=50?.80:remaining>=20?.76:.90;
+    const lieGuard=origin.lie==="bunker"?(timing.grade==="PERFECT"?.70:.62):origin.lie==="rough"?.88:1;
     travel=Math.max(travel,remaining*baseGuard*lieGuard);
   }
+  if(timing.grade==="NORMAL")travel=Math.max(travel,remaining*(origin.lie==="bunker"?.35:.50));
+  if(timing.grade==="MISS")travel=Math.max(travel,remaining*(origin.lie==="bunker"?.18:.28));
   const minimum=timing.grade==="BAD"&&origin.lie==="bunker"?2:Math.min(6,remaining*.45);
   return{isApproach:true,travel:Math.min(remaining+12,Math.max(minimum,travel)),remaining,targetRatio};
 }
+function shotInChanceFor(origin,timing,current,direction,h){
+  const distance=Number(origin.distance)||0,grade=timing.grade,isPar3Tee=origin.lie==="tee"&&h.par===3;
+  if(!["PERFECT","GOOD"].includes(grade)||(!isPar3Tee&&distance>120)||direction.error>.11||Math.abs(direction.value)>.72)return{eligible:false,chance:0,type:null};
+  if(isPar3Tee)return{eligible:true,chance:grade==="PERFECT"?.003:.0003,type:"HOLE IN ONE"};
+  const band=distance<10?grade==="PERFECT"?.15:.055:distance<30?grade==="PERFECT"?.055:.02:distance<=80?grade==="PERFECT"?.018:.006:grade==="PERFECT"?.006:.002;
+  const lieAdjustment=origin.lie==="bunker"?(grade==="PERFECT"?.82:.60):origin.lie==="rough"?.92:1;
+  return{eligible:true,chance:band*lieAdjustment,type:distance<20?"CHIP IN":distance<=80?"SHOT IN":"MIRACLE SHOT"};
+}
+function shotInResultFor(origin,timing,current,direction,h,rng=Math.random){const shot=shotInChanceFor(origin,timing,current,direction,h);if(!shot.eligible||rng()>=shot.chance)return null;const message=shot.type==="HOLE IN ONE"?"都市の一打、カップへ一直線！":shot.type==="CHIP IN"?"カラーから直接沈めた！":shot.type==="MIRACLE SHOT"?"街を越えた一打がカップへ！":"スーパーショットがカップへ吸い込まれた！";return{...shot,message}}
 function resolveFullShot(current,opt,timing,rng=Math.random){
   const h=holes[current.hole],wind=current.winds[current.hole],origin=snapshotShotOrigin(current),attacking=opt.id==="attack",layingUp=opt.id==="layup",badLie=current.lie==="rough"||current.lie==="bunker",direction=finalDirectionFor(current,timing,h),sideRisk=direction.side==="left"?h.leftRisk:direction.side==="right"?h.rightRisk:1,obAligned=h.obSide==="both"||h.obSide===direction.side;
   current.lastShotOrigin=origin;current.strokes++;const shotNumber=current.strokes;const largeMiss=timing.grade==="BAD"||(timing.grade==="MISS"&&timing.deviation>=40);const edgeAim=Math.abs(direction.aim.value)>=.5,missTowardAim=(direction.aim.value<0&&timing.side==="left")||(direction.aim.value>0&&timing.side==="right");
@@ -180,7 +191,9 @@ function resolveFullShot(current,opt,timing,rng=Math.random){
   if(rng()<obChance){current.strokes++;const animationPosition={progress:Math.min(.9,origin.position.progress+.12),lateral:direction.side==="left"?-1.05:1.05};restoreShotOrigin(current,origin);return{finished:false,penalty:true,outcome:"ob",direction:direction.side,title:`${direction.side==="left"?"左":"右"}OB`,urbanHazard:h.obLabel,text:`OB。${h.obLabel}へ出ました。1罰打を加えて元の位置から打ち直しです。次は${current.strokes+1}打目です。`,shotNumber,animationPosition}}
   const waterSide=h.waterSide||"right",canWater=h.waterRisk>0&&direction.side===waterSide&&(largeMiss||edgeAim&&missTowardAim);const waterChance=canWater?Math.min(.24,(.01+h.waterRisk*.018+(attacking?.055:0)+(edgeAim?.025:0))*(layingUp?.25:1)):0;
   if(rng()<waterChance){current.strokes++;const animationPosition={progress:Math.min(.9,origin.position.progress+.15),lateral:waterSide==="left"?Math.min(-.55,direction.value):Math.max(.55,direction.value)};restoreShotOrigin(current,origin);return{finished:false,penalty:true,outcome:"wh",direction:waterSide,title:"WH",urbanHazard:h.waterLabel,text:`WH。${h.waterLabel}に入りました。1罰打を加えて元の位置から打ち直しです。次は${current.strokes+1}打目です。`,shotNumber,animationPosition}}
-  const lieMultiplier=lieMultiplierFor(origin.lie,opt,rng),powerMultiplier=.88+(current.power||78)*.0015,windMultiplier=1+((current.hole%2?-1:1)*direction.value*(wind-1)*.008),qualityPower={PERFECT:1.02,GOOD:.98,NORMAL:.91,MISS:.79,BAD:.65}[timing.grade]+((current.control||78)-70)*.001*(timing.grade==="MISS"||timing.grade==="BAD"?1:0),shortGameMultiplier=(origin.distance<=95||origin.lie==="bunker")?.88+(current.shortGame||75)*.0015:1;
+  const shotIn=shotInResultFor(origin,timing,current,direction,h,rng);
+  if(shotIn){current.distance=0;current.lie="green";current.position={progress:.98,lateral:0};current.greenPosition={x:180,y:82};return{finished:true,penalty:false,outcome:"shot-in",shotIn:true,shotInType:shotIn.type,direction:direction.side,title:`${shotIn.type}!`,urbanHazard:h.greenLabel,text:shotIn.message,shotNumber}}
+  const lieMultiplier=lieMultiplierFor(origin.lie,opt,rng),powerMultiplier=.88+(current.power||78)*.0015,windMultiplier=1+((current.hole%2?-1:1)*direction.value*(wind-1)*.008),qualityPower={PERFECT:1.04,GOOD:1,NORMAL:.90,MISS:.72,BAD:.57}[timing.grade]+((current.control||78)-70)*.001*(timing.grade==="MISS"||timing.grade==="BAD"?1:0),shortGameMultiplier=(origin.distance<=95||origin.lie==="bunker")?.88+(current.shortGame||75)*.0015:1;
   const base=origin.lie==="tee"?(current.power||76)*3.05:Math.min(225,origin.distance*.93),variance=.96+rng()*.08,approach=approachTravelFor(origin,opt,timing,current,rng),rawTravel=base*opt.power*powerMultiplier*lieMultiplier*windMultiplier*qualityPower*shortGameMultiplier*variance,travel=approach?approach.travel:Math.max(18,rawTravel);
   current.distance=Math.max(0,Math.round(origin.distance-travel));updatePosition(current,h,direction.value,qualityPower);
   const accuracyBoost=((current.accuracy||76)-76)*.012+((current.control||76)-76)*.006-direction.error*.20-opt.risk*.025-h.difficulty*.018+(layingUp?.08:0),approachBoost=approach&&(timing.grade==="PERFECT"||timing.grade==="GOOD")?(timing.grade==="PERFECT"?.18:.10):0,greenRange=(timing.grade==="PERFECT"?28:timing.grade==="GOOD"?22:16)+(attacking&&timing.grade==="PERFECT"?8:0)-(layingUp?4:0)+(approachBoost?7:0),reachedGreenArea=current.distance<=greenRange;
@@ -200,7 +213,7 @@ function easeInOut(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
 function createShotAnimation(fromPosition,toPosition,timing,result,isPutt,greenFrom=null,greenTo=null){
   const greenAnimation=isPutt&&greenFrom&&greenTo;const from=greenAnimation?greenFrom:mapPoint(fromPosition),to=greenAnimation?greenTo:mapPoint(toPosition),side=timing.side==="left"?-1:timing.side==="right"?1:0;
   const bend={PERFECT:0,GOOD:4,NORMAL:9,MISS:16,BAD:26}[timing.grade]*(side||0);
-  const runBack=isPutt?0:{fairway:.09,green:.055,rough:.035,bunker:.02,ob:0,penalty:0}[result.outcome]??.03;
+  const runBack=isPutt?0:{fairway:.09,green:.055,rough:.035,bunker:.02,"shot-in":0,ob:0,penalty:0}[result.outcome]??.03;
   const landing=lerpPoint(to,from,runBack);
   const control={x:(from.x+landing.x)/2+bend,y:isPutt?(from.y+to.y)/2+1:Math.min(from.y,landing.y)-Math.max(22,Math.abs(from.y-landing.y)*.42)};
   return{type:isPutt?"putt":"flight",map:greenAnimation?"green":"course",from,landing,to,control,runBack,duration:Math.round((isPutt?760:980)*animationSpeedMultiplier()),flightEnd:isPutt?1:.78,bend};
@@ -220,14 +233,15 @@ function animateShot(plan,result){
       else point=lerpPoint(plan.landing,plan.to,easeInOut((progress-plan.flightEnd)/(1-plan.flightEnd)));
       ball.setAttribute("transform",`translate(${point.x} ${point.y})`);trail.style.strokeDashoffset=`${length*(1-Math.min(1,progress/(plan.type==="putt"?1:plan.flightEnd)))}`;
       if(progress<1){shotAnimationFrame=requestAnimationFrame(frame);return}
-      if(result.outcome==="cup"){pulse.setAttribute("transform",`translate(${plan.to.x} ${plan.to.y})`);pulse.classList.remove("hidden")}
-      setTimeout(()=>{ball.classList.add("hidden");trail.classList.add("hidden");pulse.classList.add("hidden");marker.classList.remove("hidden");isShotAnimating=false;resolve()},result.outcome==="cup"?220:90);
+      if(result.outcome==="cup"||result.shotIn){pulse.setAttribute("transform",`translate(${plan.to.x} ${plan.to.y})`);pulse.classList.remove("hidden")}
+      setTimeout(()=>{ball.classList.add("hidden");trail.classList.add("hidden");pulse.classList.add("hidden");marker.classList.remove("hidden");isShotAnimating=false;resolve()},result.outcome==="cup"||result.shotIn?220:90);
     };
     shotAnimationFrame=requestAnimationFrame(frame);
   });
 }
 function resultComment(opt,timing,result){
   const hit=timing.grade,side=result.direction==="left"?"左":result.direction==="right"?"右":timing.side==="left"?"左":timing.side==="right"?"右":"中央";
+  if(result.shotIn)return `${result.shotInType}! ${result.text}`;
   if(opt.id==="putt"){
     if(result.outcome==="cup")return hit==="PERFECT"?"完璧なタッチ。カップイン。":`${hit}のタッチでカップイン。`;
     if(hit==="BAD")return `大きく${side}へ外れ、返しが残る。`;
@@ -243,6 +257,7 @@ function resultComment(opt,timing,result){
   if(opt.id==="layup"&&(hit==="PERFECT"||hit==="GOOD"))return `安全に運び、${result.urbanHazard||"特設フェアウェイ"}をキープ。`;
   return `${hit}のショットで${result.urbanHazard||"特設フェアウェイ"}をキープ。`;
 }
+function showShotInCelebration(result){return new Promise(resolve=>{const overlay=$("#shotInOverlay"),label=$("#shotInLabel"),message=$("#shotInMessage");if(!overlay||!label||!message){resolve();return}overlay.dataset.type=result.shotInType||"SHOT IN";label.textContent=`${result.shotInType||"SHOT IN"}!`;message.textContent=result.text||"スーパーショットがカップへ！";overlay.classList.remove("hidden");setTimeout(()=>{overlay.classList.add("hidden");resolve()},Math.max(440,Math.round(860*animationSpeedMultiplier())))})}
 function setShotLock(locked){shotLocked=locked;document.querySelector("#gamePanel")?.classList.toggle("shot-locked",locked)}
 async function renderCharacterShotAnimation({character,shotType,timingResult,isPutt,missDirection}){
   if(!gameSettings.enableSwingAnimation)return;
@@ -265,11 +280,12 @@ async function applyShot(opt,timing,rng=Math.random,alreadyLocked=false){
     const toPosition=result.animationPosition||(result.finished?{progress:.98,lateral:0}:{...state.position}),toGreen=wasPutt?(result.finished?{x:180,y:82}:{...(state.greenPosition||greenPointForDistance(state.distance,"center"))}):null;
     const willPickup=!result.finished&&state.strokes>=holes[playedHole].par+6;
     if(willPickup){result.title="ピックアップ";result.text="最大スコアでホールアウト";result.outcome="penalty"}
-    result.nextShot=state.strokes+1;const log={stroke:result.shotNumber,type:"shot",choice:opt.name,aim:state.aim,distanceBefore,timing:{grade:timing.grade,deviation:+timing.deviation.toFixed(1),side:timing.side},outcome:result.outcome,title:result.title,text:result.text,origin:state.lastShotOrigin};state.shots[playedHole].push(log);
+    result.nextShot=state.strokes+1;const log={stroke:result.shotNumber,type:"shot",choice:opt.name,aim:state.aim,distanceBefore,lie:state.lastShotOrigin?.lie||state.lie,timing:{grade:timing.grade,deviation:+timing.deviation.toFixed(1),side:timing.side},outcome:result.outcome,title:result.title,text:result.text,shotInType:result.shotInType||null,origin:state.lastShotOrigin};state.shots[playedHole].push(log);
     if(result.penalty)state.shots[playedHole].push({stroke:result.shotNumber+1,type:"penalty",choice:"1打罰",outcome:result.outcome,title:"ペナルティ",text:result.text});
     try{await renderCharacterShotAnimation({character:characterById(state.characterId),shotType:opt.id,timingResult:timing,isPutt:wasPutt,missDirection:result.direction||timing.side})}catch{}
     const plan=createShotAnimation(fromPosition,toPosition,timing,result,wasPutt,fromGreen,toGreen);
     try{await animateShot(plan,result)}catch{}
+    if(result.shotIn)await showShotInCelebration(result);
     if(result.finished)finishHole();else if(willPickup)finishHole(holes[playedHole].par+6);
     result.comment=resultComment(opt,timing,result);save();render();showResult(opt,timing,result);
     if(state.complete)setTimeout(()=>switchView("result"),650);
@@ -300,20 +316,20 @@ function getRanking(){const thru=completedHoles();return[...state.cpu.map(c=>({n
 function rankingForRound(roundHoles,source=state){const par=parThrough(roundHoles),playerTotalForRound=source.scores.slice(0,roundHoles).reduce((sum,score)=>sum+(score||0),0);return[...source.cpu.map(cpu=>{const total=cpu.scores.slice(0,roundHoles).reduce((sum,score)=>sum+score,0);return{name:cpu.name,country:cpu.country,score:total-par,total,thru:"F"}}),{name:source.name,country:"YOU",score:playerTotalForRound-par,total:playerTotalForRound,thru:"F",player:true}].sort((a,b)=>a.score-b.score).map((row,index)=>({...row,rank:index+1}))}
 function roundStats(roundHoles,source=state){
   const scores=source.scores.slice(0,roundHoles),logs=source.shots.slice(0,roundHoles).flatMap((holeShots,holeIndex)=>holeShots.filter(shot=>shot.type==="shot").map(shot=>({...shot,hole:holeIndex+1}))),fullShots=logs.filter(log=>log.choice!=="パットする"),putts=logs.filter(log=>log.choice==="パットする"),attackShots=logs.filter(log=>log.choice==="攻めて打つ"),parOn=fullShots.filter(log=>log.outcome==="green").length;
-  const stat={birdies:0,pars:0,bogeys:0,doubles:0,ob:logs.filter(log=>log.outcome==="ob").length,wh:logs.filter(log=>log.outcome==="wh").length,bunkers:logs.filter(log=>log.outcome==="bunker").length,fairwayRate:fullShots.length?Math.round(logs.filter(log=>log.outcome==="fairway").length/fullShots.length*100):0,greenRate:roundHoles?Math.round(parOn/roundHoles*100):0,totalPutts:putts.length,averagePutts:roundHoles?+(putts.length/roundHoles).toFixed(1):0,attackUsed:attackShots.length,attackSuccess:attackShots.length?Math.round(attackShots.filter(log=>log.outcome==="green"||log.outcome==="fairway").length/attackShots.length*100):0};
+  const stat={birdies:0,pars:0,bogeys:0,doubles:0,ob:logs.filter(log=>log.outcome==="ob").length,wh:logs.filter(log=>log.outcome==="wh").length,bunkers:logs.filter(log=>log.outcome==="bunker").length,shotIns:logs.filter(log=>Boolean(log.shotInType)).length,fairwayRate:fullShots.length?Math.round(logs.filter(log=>log.outcome==="fairway").length/fullShots.length*100):0,greenRate:roundHoles?Math.round(parOn/roundHoles*100):0,totalPutts:putts.length,averagePutts:roundHoles?+(putts.length/roundHoles).toFixed(1):0,attackUsed:attackShots.length,attackSuccess:attackShots.length?Math.round(attackShots.filter(log=>log.outcome==="green"||log.outcome==="fairway"||log.outcome==="shot-in").length/attackShots.length*100):0};
   scores.forEach((score,index)=>{const diff=score-holes[index].par;if(diff<=-1)stat.birdies++;else if(diff===0)stat.pars++;else if(diff===1)stat.bogeys++;else stat.doubles++});return{...stat,logs};
 }
 function shotLabel(log){const hole=holes[(log.hole||1)-1];return `${log.hole}H ${hole?.name||"GREEN CITY"} · 第${log.stroke}打`}
 function bestAndTrouble(stats){
-  const best=stats.logs.map(log=>{let value=0;if(log.choice==="攻めて打つ"&&log.timing?.grade==="PERFECT"&&log.outcome==="green")value=120;else if(log.choice==="パットする"&&log.outcome==="cup")value=95+(log.distanceBefore||0);else if(log.outcome==="green"&&log.timing?.grade==="PERFECT")value=85;else if(log.outcome==="fairway"&&log.timing?.grade==="GOOD")value=55;return{...log,value}}).sort((a,b)=>b.value-a.value)[0];
+  const best=stats.logs.map(log=>{let value=0;if(log.shotInType==="HOLE IN ONE")value=300;else if(log.shotInType==="MIRACLE SHOT"||log.shotInType==="SHOT IN")value=260;else if(log.shotInType==="CHIP IN")value=240;else if(log.choice==="攻めて打つ"&&log.timing?.grade==="PERFECT"&&log.outcome==="green")value=120;else if(log.choice==="パットする"&&log.outcome==="cup")value=95+(log.distanceBefore||0);else if(log.outcome==="green"&&log.timing?.grade==="PERFECT")value=85;else if(log.outcome==="fairway"&&log.timing?.grade==="GOOD")value=55;return{...log,value}}).sort((a,b)=>b.value-a.value)[0];
   const trouble=stats.logs.map(log=>{let value=0;if(log.outcome==="ob")value=120;else if(log.outcome==="wh")value=115;else if(log.outcome==="bunker")value=75;else if(log.timing?.grade==="BAD")value=60;return{...log,value}}).sort((a,b)=>b.value-a.value)[0];
   return{best:best?.value?best:null,trouble:trouble?.value?trouble:null};
 }
 function roundEvaluation(rank){return rank===1?"WINNER":rank<=3?"PODIUM FINISH":rank<=10?"TOP10 FINISH":"FINISH"}
-function pgaComment(rank,stats){if(rank===1)return"見事な優勝です！フィールドを引っ張る堂々たるラウンドでした。";if(stats.ob+stats.wh>=2)return"狙い方向を少し安全にすると、さらに安定しそうです。";if(stats.averagePutts>=2.1)return"グリーン上で少し苦戦しました。距離感を丁寧に合わせましょう。";if(stats.attackUsed>=2&&stats.attackSuccess>=70)return"攻めどころの判断が光りました。大胆さがスコアにつながっています。";if(stats.birdies>=2)return"チャンスをしっかり決めました。バーディの量産が素晴らしいです。";if(rank<=10)return"安定したプレーでした。次は表彰台を狙えます。";return"最後まで戦い抜きました。次のラウンドでリベンジしましょう。"}
+function pgaComment(rank,stats){if(rank===1)return"見事な優勝です！フィールドを引っ張る堂々たるラウンドでした。";if(stats.shotIns)return"スーパーショットで直接カップイン！都市コースを沸かせる一打でした。";if(stats.ob+stats.wh>=2)return"狙い方向を少し安全にすると、さらに安定しそうです。";if(stats.averagePutts>=2.1)return"グリーン上で少し苦戦しました。距離感を丁寧に合わせましょう。";if(stats.attackUsed>=2&&stats.attackSuccess>=70)return"攻めどころの判断が光りました。大胆さがスコアにつながっています。";if(stats.birdies>=2)return"チャンスをしっかり決めました。バーディの量産が素晴らしいです。";if(rank<=10)return"安定したプレーでした。次は表彰台を狙えます。";return"最後まで戦い抜きました。次のラウンドでリベンジしましょう。"}
 function buildFinalResult(source=state){const roundHoles=source.roundHoles,scores=source.scores.slice(0,roundHoles),par=parThrough(roundHoles),ranking=rankingForRound(roundHoles,source),player=ranking.find(row=>row.player),stats=roundStats(roundHoles,source),stories=bestAndTrouble(stats);return{mode:roundModeByHoles(roundHoles).label,roundHoles,courseTheme:COURSE_THEME,courseTitle:COURSE_TITLE,courseSubtitle:COURSE_SUBTITLE,characterName:source.characterName,characterId:source.characterId,rank:player.rank,total:player.total,toPar:player.score,thru:roundHoles,scores,par,evaluation:roundEvaluation(player.rank),stats,bestShot:stories.best,troubleShot:stories.trouble,ranking:pgaSafeRanking(ranking),comment:pgaComment(player.rank,stats)}}
 function pgaSafeRanking(ranking){return ranking.map(row=>({rank:row.rank,name:row.name,country:row.country,score:row.score,total:row.total,thru:row.thru,player:Boolean(row.player)}))}
-function showResult(opt,timing,result){clearTimeout(resultTimer);$("#resultTitle").textContent=`${opt.name} × ${timing.grade}`;$("#resultText").textContent=result.comment;$("#resultIcon").textContent=result.outcome==="cup"?"◆":result.outcome==="ob"||result.outcome==="wh"||result.outcome==="penalty"?"!":"●";$("#resultBanner").classList.remove("hidden");resultTimer=setTimeout(()=>$("#resultBanner").classList.add("hidden"),3200)}
+function showResult(opt,timing,result){clearTimeout(resultTimer);$("#resultTitle").textContent=result.shotIn?`${result.shotInType}! × ${timing.grade}`:`${opt.name} × ${timing.grade}`;$("#resultText").textContent=result.comment;$("#resultIcon").textContent=result.shotIn||result.outcome==="cup"?"✦":result.outcome==="ob"||result.outcome==="wh"||result.outcome==="penalty"?"!":"●";$("#resultBanner").classList.remove("hidden");resultTimer=setTimeout(()=>$("#resultBanner").classList.add("hidden"),result.shotIn?3900:3200)}
 function showToast(message){document.querySelector(".toast")?.remove();const toast=document.createElement("div");toast.className="toast";toast.textContent=message;document.body.append(toast);setTimeout(()=>toast.remove(),2500)}
 
 function renderCourse(h){
@@ -337,7 +353,7 @@ function renderResult(){
   $("#resultScorecard").innerHTML=`<table class="result-score-table"><thead><tr><th>HOLE</th>${hs.map(h=>`<th>${h.number}</th>`).join("")}<th class="total-cell">TOTAL</th></tr></thead><tbody><tr><td>PAR</td>${hs.map(h=>`<td>${h.par}</td>`).join("")}<td class="total-cell">${result.par}</td></tr><tr><td>SCORE</td>${result.scores.map((score,index)=>`<td class="score-cell">${resultScoreCell(score,hs[index].par)}</td>`).join("")}<td class="total-cell">${result.total}</td></tr></tbody></table><div class="result-total-line result-card-total"><span>${result.roundHoles>=9?`OUT <b>${out}</b>`:""}</span><span>${inScore!==null?`IN <b>${inScore}</b>`:""}</span><span>±PAR <b class="${scoreClass(result.toPar)}">${relative(result.toPar,0)}</b></span></div>`;
   const statItems=[["BIRDIE",result.stats.birdies],["PAR",result.stats.pars],["BOGEY",result.stats.bogeys],["DBL+",result.stats.doubles],["OB",result.stats.ob],["WH",result.stats.wh],["BUNKER",result.stats.bunkers],["FW KEEP",`${result.stats.fairwayRate}%`],["GIR",`${result.stats.greenRate}%`],["PUTTS",result.stats.totalPutts],["AVG PUTT",result.stats.averagePutts],["ATTACK",`${result.stats.attackUsed}/${result.stats.attackSuccess}%`]];
   $("#resultStats").innerHTML=statItems.map(([label,value])=>`<div class="stat-card"><span>${label}</span><b>${value}</b></div>`).join("");
-  const best=result.bestShot,trouble=result.troubleShot;$("#bestShotTitle").textContent=best?`${shotLabel(best)} · ${best.choice} × ${best.timing.grade}`:"安定したラウンド";$("#bestShotText").textContent=best?`${best.text}${best.distanceBefore?`（開始時 ${best.distanceBefore}${best.choice==="パットする"?"m":"Y"}）`:""}`:"大きなチャンスを着実にまとめました。";$("#troubleShotTitle").textContent=trouble?`${shotLabel(trouble)} · ${trouble.choice} × ${trouble.timing.grade}`:"大きなトラブルなし";$("#troubleShotText").textContent=trouble?trouble.text:"大きなミスを避けてプレーできました。";
+  const best=result.bestShot,trouble=result.troubleShot;$("#bestShotTitle").textContent=best?`${shotLabel(best)} · ${best.shotInType?`${best.shotInType} · `:""}${best.choice} × ${best.timing.grade}`:"安定したラウンド";$("#bestShotText").textContent=best?`${best.shotInType?`残り${best.distanceBefore}Y ${best.lie||"グリーン外"}から ${best.shotInType}! `:""}${best.text}${best.distanceBefore&&!best.shotInType?`（開始時 ${best.distanceBefore}${best.choice==="パットする"?"m":"Y"}）`:""}`:"大きなチャンスを着実にまとめました。";$("#troubleShotTitle").textContent=trouble?`${shotLabel(trouble)} · ${trouble.choice} × ${trouble.timing.grade}`:"大きなトラブルなし";$("#troubleShotText").textContent=trouble?trouble.text:"大きなミスを避けてプレーできました。";
   const topRanking=result.ranking.slice(0,5),playerRow=result.ranking.find(row=>row.player),displayRanking=playerRow&&playerRow.rank>5?[...topRanking,playerRow]:topRanking;$("#pgaComment").textContent=`PGA君: ${result.comment}`;$("#resultRanking").innerHTML=displayRanking.map(row=>`<div class="result-ranking-row ${row.player?"player":""}"><div>${formatRank(row.rank)}</div><div class="result-rank-name">${row.name}<small>${row.player?"PLAYER":row.country}</small></div><div class="result-rank-score ${scoreClass(row.score)}">${relative(row.score,0)}</div><div class="result-rank-total">${row.total}</div></div>`).join("");
 }
 function render(){
@@ -359,7 +375,7 @@ function returnToStart(){selectedCharacterId=state.characterId||selectedCharacte
 function resetGame(){if(!state.started||confirm("現在のラウンドを終了して、新しく始めますか？")){localStorage.removeItem(STORAGE_KEY);localStorage.removeItem("pga-tour-18-save-v5");localStorage.removeItem("pga-tour-18-save-v4");localStorage.removeItem("pga-tour-18-save-v3");localStorage.removeItem("pga-tour-18-save-v2");localStorage.removeItem("pga-tour-18-save-v1");state={started:false};switchView("play");render()}}
 function showFinal(){const rank=getRanking().findIndex(x=>x.player)+1,rel=playerTotal()-parThrough(18);$("#finalPosition").textContent=formatRank(rank);$("#finalScore").textContent=relative(rel,0);$("#finalScore").className=scoreClass(rel);$("#modalBackdrop").classList.remove("hidden")}
 
-globalThis.PGAEngine={holes,ROUND_MODES,ATTACK_SHOT_LIMIT,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,SETTINGS_KEY,DEFAULT_GAME_SETTINGS,characterById,aimById,roundModeByHoles,timingProfileFor,timingResult,freshState,migrate,optionsFor,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,approachTravelFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,renderCharacterShotAnimation,setShotLock,rankingForRound,roundStats,bestAndTrouble,buildFinalResult,resultComment,normalizeGameSettings,loadGameSettings,animationSpeedMultiplier};
+globalThis.PGAEngine={holes,ROUND_MODES,ATTACK_SHOT_LIMIT,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,SETTINGS_KEY,DEFAULT_GAME_SETTINGS,characterById,aimById,roundModeByHoles,timingProfileFor,timingResult,freshState,migrate,optionsFor,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,approachTravelFor,shotInChanceFor,shotInResultFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,renderCharacterShotAnimation,setShotLock,rankingForRound,roundStats,bestAndTrouble,buildFinalResult,resultComment,normalizeGameSettings,loadGameSettings,animationSpeedMultiplier};
 Object.assign(globalThis.PGAEngine,{spriteFramePaths,readySpriteFrames,spriteDelayFor,playSpriteFrames,checkSpriteAsset,COURSE_TITLE,COURSE_SUBTITLE,COURSE_THEME,urbanLieLabel});
 Object.assign(globalThis.PGAEngine,{introHazardsFor,introMiniMapMarkup,shouldShowHoleIntro,dismissHoleIntro,syncHoleIntro});
 $("#holeIntroStartButton").onclick=dismissHoleIntro;$("#holeIntroSkipButton").onclick=dismissHoleIntro;
