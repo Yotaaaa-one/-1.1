@@ -19,7 +19,7 @@
         <strong>URBAN TOUR 18</strong>
         <span>GREEN CITY SPECIAL COURSE</span>
       </div>
-      <button class="icon-button" id="newGameButton" aria-label="新しいラウンド">↻</button>
+      <div class="topbar-actions"><button class="icon-button" id="settingsButton" aria-label="設定">⚙</button><button class="icon-button" id="newGameButton" aria-label="新しいラウンド">↻</button></div>
     </header>
 
     <nav class="tabs" aria-label="画面切り替え">
@@ -250,6 +250,19 @@
       <div class="hole-intro-hazards" id="holeIntroHazards" aria-label="危険エリア"></div>
       <label class="hole-intro-skip-setting"><input type="checkbox" id="skipHoleIntroToggle"> 次回からホール紹介を省略</label>
       <div class="hole-intro-actions"><button class="primary-button" id="holeIntroStartButton">このホールを開始 <span>→</span></button><button class="text-button" id="holeIntroSkipButton">スキップ</button></div>
+    </article>
+  </div>
+  <div class="settings-overlay hidden" id="settingsOverlay" aria-modal="true" aria-labelledby="settingsTitle" role="dialog">
+    <article class="settings-card">
+      <div class="settings-heading"><div><p>URBAN TOUR 18</p><h2 id="settingsTitle">設定</h2></div><button class="settings-close" id="settingsCloseButton" aria-label="設定を閉じる">×</button></div>
+      <section class="settings-section"><h3>演出と進行</h3>
+        <label class="settings-toggle"><span><b>ホール紹介を表示</b><small>各ホール開始前の攻略カード</small></span><input type="checkbox" id="showHoleIntroSetting"></label>
+        <label class="settings-toggle"><span><b>スイング演出</b><small>キャラクタースプライト演出</small></span><input type="checkbox" id="enableSwingAnimationSetting"></label>
+        <label class="settings-toggle"><span><b>ボール軌道アニメーション</b><small>ショット・パットの飛球表示</small></span><input type="checkbox" id="enableBallAnimationSetting"></label>
+      </section>
+      <section class="settings-section"><h3>アニメーション速度</h3><div class="settings-speed"><label><input type="radio" name="animationSpeedSetting" value="normal"> 標準</label><label><input type="radio" name="animationSpeedSetting" value="fast"> 速い</label></div></section>
+      <section class="settings-section settings-danger"><h3>データ</h3><button class="settings-secondary" id="settingsRestartButton">最初からやり直す</button><button class="settings-danger-button" id="settingsDeleteSaveButton">セーブデータを削除</button><small>設定内容は保持されます。</small></section>
+      <button class="primary-button" id="settingsCloseButtonBottom">設定を閉じる</button>
     </article>
   </div>
   <div class="character-action-overlay hidden" id="characterActionOverlay" aria-live="polite" aria-atomic="true">
