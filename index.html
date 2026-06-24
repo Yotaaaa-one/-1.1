@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#092a20">
-  <meta name="description" content="1打ずつ戦う、18ホールのゴルフスコアリングゲーム">
+  <meta name="description" content="架空都市グリーンシティを舞台にした、特設18ホールのゴルフスコアリングゲーム">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="styles.css">
-  <title>PGA TOUR 18</title>
+  <title>URBAN TOUR 18</title>
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true"><span>18</span></div>
       <div class="brand-copy">
-        <strong>PGA TOUR 18</strong>
-        <span>STROKE PLAY</span>
+        <strong>URBAN TOUR 18</strong>
+        <span>GREEN CITY SPECIAL COURSE</span>
       </div>
       <button class="icon-button" id="newGameButton" aria-label="新しいラウンド">↻</button>
     </header>
@@ -32,9 +32,9 @@
       <section id="playView" class="view active" aria-label="プレイ画面">
         <div id="startPanel" class="start-panel hidden">
           <div class="hero-emblem">18</div>
-          <p class="eyebrow">ONE PLAYER CHAMPIONSHIP</p>
-          <h1>最終ホールまで、<br>一打ずつ勝負する。</h1>
-          <p>能力値と判断で20人のフィールドに挑戦。すべてのショットがスコアカードに残ります。</p>
+          <p class="eyebrow">GREEN CITY · SAFETY-MANAGED SPECIAL EVENT</p>
+          <h1>街を駆け抜ける、<br>特設18ホール。</h1>
+          <p>大会期間中だけ安全に規制された架空都市コースで、20人のフィールドに挑戦。すべてのショットがスコアカードに残ります。</p>
           <section class="mode-picker" aria-label="プレーモード選択">
             <div class="picker-heading"><span>SELECT MODE</span><small>HOLES</small></div>
             <div class="mode-options" id="modeOptions"></div>
@@ -65,17 +65,27 @@
               <span class="difficulty" id="difficultyLabel">STANDARD</span>
             </div>
             <div class="course-visual" id="courseVisual">
-              <svg class="course-map" id="courseMap" viewBox="0 0 360 220" preserveAspectRatio="none" aria-label="ホール簡易マップ">
-                <rect width="360" height="220" fill="#173c2e"/>
-                <path id="fairwayPath" d="M158 220 C120 170 220 146 176 104 C135 64 192 48 180 20" fill="none" stroke="#4f9566" stroke-width="86" stroke-linecap="round"/>
-                <ellipse cx="180" cy="23" rx="49" ry="23" fill="#72b77b"/>
-                <g id="waterFeature" class="hazard-feature"><path d="M235 78 Q310 62 360 84 L360 137 Q295 118 230 134 Q250 108 235 78" fill="#2787a7"/><text x="309" y="108">WATER</text></g>
-                <g id="leftBunker"><ellipse cx="131" cy="44" rx="31" ry="11" fill="#decf9c" transform="rotate(-20 131 44)"/><text x="108" y="67">B</text></g>
-                <g id="rightBunker"><ellipse cx="226" cy="39" rx="27" ry="10" fill="#decf9c" transform="rotate(20 226 39)"/><text x="238" y="64">B</text></g>
-                <g id="obLeft" class="ob-zone"><path d="M14 25V196"/><text x="20" y="112">OB</text></g>
-                <g id="obRight" class="ob-zone"><path d="M346 25V196"/><text x="324" y="112">OB</text></g>
+              <svg class="course-map urban-map" id="courseMap" viewBox="0 0 360 220" preserveAspectRatio="none" aria-label="グリーンシティ特設ホールマップ">
+                <rect id="mapBase" width="360" height="220" fill="#1d4a3b"/>
+                <g id="urbanRoad" class="urban-road"><path d="M0 172 L360 126"/><path d="M0 179 L360 133"/></g>
+                <g id="urbanCrosswalk" class="urban-crosswalk"><path d="M18 158 L66 151 M26 166 L74 159 M34 174 L82 167 M286 124 L334 117 M294 132 L342 125"/></g>
+                <g id="urbanBuildings" class="urban-buildings"><rect x="15" y="22" width="56" height="80" rx="3"/><rect x="285" y="12" width="54" height="90" rx="3"/><rect x="302" y="139" width="43" height="47" rx="3"/><path d="M25 40H60 M25 58H60 M25 76H60 M294 31H330 M294 49H330 M294 67H330"/></g>
+                <g id="urbanPark" class="urban-park"><path d="M0 22 Q66 10 122 35 L107 92 Q43 77 0 98Z"/><circle cx="44" cy="52" r="12"/><circle cx="76" cy="42" r="10"/><circle cx="92" cy="69" r="13"/></g>
+                <g id="urbanRooftop" class="urban-rooftop"><path d="M222 26 L319 42 L300 86 L206 69Z"/><path d="M224 31 L313 45 L296 78 L212 65Z"/></g>
+                <g id="urbanRail" class="urban-rail"><path d="M20 114 L338 84 M22 124 L340 94 M42 108 L49 130 M87 104 L94 126 M132 100 L139 122 M177 96 L184 118 M222 92 L229 114"/></g>
+                <g id="urbanNeon" class="urban-neon"><rect x="19" y="110" width="57" height="17" rx="2"/><text x="27" y="122">NEON</text><rect x="286" y="104" width="49" height="17" rx="2"/><text x="293" y="116">CITY</text></g>
+                <g id="urbanFountain" class="urban-fountain"><circle cx="296" cy="143" r="20"/><path d="M296 155 Q284 142 296 128 Q308 142 296 155 M278 143 H314"/></g>
+                <path id="fairwayPath" d="M158 220 C120 170 220 146 176 104 C135 64 192 48 180 20" fill="none" stroke="#72bc70" stroke-width="76" stroke-linecap="round"/>
+                <ellipse id="urbanGreen" cx="180" cy="23" rx="49" ry="23" fill="#9bdc72"/>
+                <text id="mapGreenLabel" x="151" y="27">EVENT GREEN</text>
+                <g id="waterFeature" class="hazard-feature"><path d="M235 78 Q310 62 360 84 L360 137 Q295 118 230 134 Q250 108 235 78"/><text id="waterLabel" x="291" y="108">RIVER</text></g>
+                <g id="leftBunker" class="urban-sand"><ellipse cx="131" cy="44" rx="31" ry="11" transform="rotate(-20 131 44)"/><text x="108" y="67">SAND</text></g>
+                <g id="rightBunker" class="urban-sand"><ellipse cx="226" cy="39" rx="27" ry="10" transform="rotate(20 226 39)"/><text x="235" y="64">SAND</text></g>
+                <g id="obLeft" class="ob-zone"><path d="M14 25V196"/><text id="obLeftLabel" x="20" y="112">OB</text></g>
+                <g id="obRight" class="ob-zone"><path d="M346 25V196"/><text id="obRightLabel" x="315" y="112">OB</text></g>
                 <g class="tee-mark"><line x1="158" y1="205" x2="202" y2="205"/><circle cx="158" cy="205" r="3"/><circle cx="202" cy="205" r="3"/></g>
                 <g class="map-pin"><line x1="180" y1="12" x2="180" y2="39"/><path d="M181 12 L203 20 L181 27Z"/></g>
+                <text id="mapDistrict" class="map-district" x="16" y="205">GREEN CITY</text>
                 <path id="aimLine" class="aim-line" d=""/>
                 <g id="positionMarker" class="position-marker"><circle r="9"/><circle r="3"/></g>
                 <path id="shotTrail" class="shot-trail hidden" d=""/>
@@ -102,6 +112,7 @@
               <div class="wind-pill" id="windPill">WIND 2m/s →</div>
               <div class="distance-pill" id="distancePill">412 YDS</div>
             </div>
+            <div class="urban-hole-note"><strong id="holeName">シティパーク・オープナー</strong><p id="holeComment">大会期間中は安全に規制された、架空の特設コースです。</p></div>
             <div class="shot-status">
               <div><span>SHOT</span><strong id="shotNumber">1</strong></div>
               <div><span>LIE</span><strong id="lieValue">TEE</strong></div>
@@ -142,7 +153,7 @@
 
       <section id="resultView" class="view result-view" aria-label="ラウンド結果">
         <div class="result-hero" id="resultHero">
-          <p id="resultModeLabel">18 HOLE RESULT</p>
+          <p id="resultModeLabel">URBAN TOUR 18 · 18H CITY PLAY</p>
           <span class="result-grade" id="resultGrade">WINNER</span>
           <div class="result-character" id="resultCharacterVisual"></div>
           <h2 id="resultCharacter">バランスプロ</h2>
@@ -163,7 +174,7 @@
         </section>
         <section class="pga-comment" id="pgaComment">PGA君コメント</section>
         <section class="result-section">
-          <h3>FINAL RANKING</h3>
+          <h3>FINAL RANKING <small>GREEN CITY SPECIAL COURSE</small></h3>
           <div class="result-ranking-head"><span>POS</span><span>PLAYER</span><span>SCORE</span><span>TOTAL</span></div>
           <div class="result-ranking" id="resultRanking"></div>
         </section>
@@ -188,7 +199,7 @@
       </section>
 
       <section id="rankingView" class="view" aria-label="ランキング">
-        <div class="page-heading leaderboard-heading"><div><p>CHAMPIONSHIP</p><h2>LEADERBOARD</h2></div><span><i></i> LIVE</span></div>
+        <div class="page-heading leaderboard-heading"><div><p>URBAN TOUR 18 · GREEN CITY SPECIAL COURSE</p><h2>LEADERBOARD</h2></div><span><i></i> LIVE</span></div>
         <div class="ranking-subhead"><span>POS</span><span>PLAYER</span><span>THRU</span><span>TOTAL</span></div>
         <div id="rankingList" class="ranking-list"></div>
       </section>
