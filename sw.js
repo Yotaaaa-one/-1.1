@@ -1,4 +1,4 @@
-const CACHE="pga-tour-18-v12";
+const CACHE="pga-tour-18-v13";
 const ASSETS=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg"];
 const CHARACTER_IDS=["balance","power","technique"];
 const BASE_CHARACTER_ASSETS=CHARACTER_IDS.flatMap(id=>["icon","bust","full"].map(kind=>`assets/characters/${id}/${kind}.png`));

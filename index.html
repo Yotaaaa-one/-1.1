@@ -238,6 +238,20 @@
       <button class="text-button" id="closeModalButton">スコアカードを見る</button>
     </div>
   </div>
+  <div class="hole-intro-overlay hidden" id="holeIntroOverlay" aria-modal="true" aria-labelledby="holeIntroTitle" role="dialog">
+    <article class="hole-intro-card" id="holeIntroCard" data-time="day" data-area="park">
+      <div class="hole-intro-topline"><span>URBAN TOUR 18</span><span id="holeIntroProgress">1 / 18H</span></div>
+      <div class="hole-intro-kicker"><span id="holeIntroTime">昼</span><span id="holeIntroArea">公園エリア</span></div>
+      <h2 id="holeIntroTitle">1H シティパーク・オープナー</h2>
+      <div class="hole-intro-score"><strong id="holeIntroPar">PAR 4</strong><strong id="holeIntroYards">376 YDS</strong></div>
+      <div class="hole-intro-map" id="holeIntroMap" aria-label="ホールミニマップ"></div>
+      <dl class="hole-intro-landmark"><dt>LANDMARK</dt><dd id="holeIntroLandmark">PARK POND</dd></dl>
+      <p class="hole-intro-comment" id="holeIntroComment">中央狙いが安全です。</p>
+      <div class="hole-intro-hazards" id="holeIntroHazards" aria-label="危険エリア"></div>
+      <label class="hole-intro-skip-setting"><input type="checkbox" id="skipHoleIntroToggle"> 次回からホール紹介を省略</label>
+      <div class="hole-intro-actions"><button class="primary-button" id="holeIntroStartButton">このホールを開始 <span>→</span></button><button class="text-button" id="holeIntroSkipButton">スキップ</button></div>
+    </article>
+  </div>
   <div class="character-action-overlay hidden" id="characterActionOverlay" aria-live="polite" aria-atomic="true">
     <div class="character-action-panel" id="characterActionPanel" data-character="balance" data-grade="NORMAL" data-putt="false">
       <div class="character-action-effect" id="characterActionEffect"></div>
