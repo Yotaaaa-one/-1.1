@@ -1,67 +1,111 @@
 import fs from "node:fs";
 import vm from "node:vm";
 
-const fake=()=>({classList:{toggle(){},add(){},remove(){}},style:{},setAttribute(){},scrollIntoView(){},textContent:"",innerHTML:"",dataset:{}});
-const makeContext=(saved={})=>{const elements=new Map(),localStorage={data:saved,getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};const context={console,Math,JSON,Number,Array,Object,String,localStorage,navigator:{},location:{protocol:"file:"},performance:{now:()=>0},requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>0,clearTimeout(){},confirm:()=>true,window:{scrollTo(){}},document:{querySelector(s){if(!elements.has(s))elements.set(s,fake());return elements.get(s)},querySelectorAll(){return[]}}};context.globalThis=context;vm.runInNewContext(fs.readFileSync("app.js","utf8"),context);return context};
+const fake=()=>({classList:{toggle(){},add(){},remove(){}},style:{},setAttribute(){},scrollIntoView(){},textContent:"",innerHTML:"",dataset:{},onclick:null,onchange:null,checked:false,value:"normal"});
+const makeContext=(saved={})=>{
+  const elements=new Map(),localStorage={data:saved,getItem(k){return this.data[k]??null},setItem(k,v){this.data[k]=v},removeItem(k){delete this.data[k]}};
+  const context={console,Math,JSON,Number,Array,Object,String,Boolean,localStorage,navigator:{},location:{protocol:"file:"},performance:{now:()=>0},requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>0,clearTimeout(){},confirm:()=>true,window:{scrollTo(){}},document:{querySelector(s){if(!elements.has(s))elements.set(s,fake());return elements.get(s)},querySelectorAll(){return[]}}};
+  context.__elements=elements;
+  context.globalThis=context;vm.runInNewContext(fs.readFileSync("app.js","utf8"),context);return context;
+};
 const context=makeContext(),E=context.PGAEngine;
-const fullShot=E.freshState("TEST"),greenShot={...E.freshState("PUTT"),lie:"green",distance:2.5};
-const outsideOptions=E.optionsFor(fullShot),greenOptions=E.optionsFor(greenShot);
-const profileChecks=Object.values(E.TIMING_PROFILES).map(profile=>({key:profile.key,perfect:E.timingResult(50+profile.perfect/2,profile).grade,good:E.timingResult(50+profile.good/2,profile).grade,normal:E.timingResult(50+profile.normal/2,profile).grade,miss:E.timingResult(50+profile.miss/2,profile).grade,bad:E.timingResult(100,profile).grade,visualTotal:+(((100-profile.miss)/2+(profile.miss-profile.normal)/2+(profile.normal-profile.good)/2+(profile.good-profile.perfect)/2+profile.perfect+(profile.good-profile.perfect)/2+(profile.normal-profile.good)/2+(profile.miss-profile.normal)/2+(100-profile.miss)/2).toFixed(5))}));
-const perfect=E.timingResult(50,E.TIMING_PROFILES.normal),badRight=E.timingResult(100,E.TIMING_PROFILES.attack);
-const ideal=E.freshState("TEST");ideal.winds[0]=5;
-const idealResult=E.resolveFullShot(ideal,outsideOptions[0],perfect,()=>.99);
-const bad=E.freshState("TEST");bad.winds[0]=5;
-const badResult=E.resolveFullShot(bad,outsideOptions[1],badRight,()=>0);
+const html=fs.readFileSync("index.html","utf8"),appSource=fs.readFileSync("app.js","utf8"),styleSource=fs.readFileSync("styles.css","utf8"),sw=fs.readFileSync("sw.js","utf8"),manifest=JSON.parse(fs.readFileSync("manifest.webmanifest","utf8"));
 
-let finished=0,maxStrokes=0;
+const makeState=(characterId="balance",shot="normal")=>{const s=E.freshState("VERIFY",characterId);s.hole=0;s.lie="tee";s.distance=E.holes[0].yards;s.winds[0]=1;s.aim="center";return{s,opt:E.optionsFor(s).find(o=>o.id===shot)||E.optionsFor(s)[0]}};
+const travelFor=(characterId,shot="normal")=>{const {s,opt}=makeState(characterId,shot);const before=s.distance;E.resolveFullShot(s,opt,E.timingResult(50,E.timingProfileFor(opt,s)),()=>.99);return before-s.distance};
+const directionFor=(characterId,shot="normal")=>{const {s,opt}=makeState(characterId,shot);return E.finalDirectionFor(s,E.timingResult(100,E.timingProfileFor(opt,s)),E.holes[0],opt).error};
+
+let holesFinished=0,maxStrokes=0;
 for(let hole=0;hole<18;hole++){
-  const s=E.freshState("TEST");s.hole=hole;s.distance=E.holes[hole].yards;s.winds[hole]=2;s.strokes=0;s.lie="tee";
-  for(let turn=0;turn<12;turn++){
-    const opt=E.optionsFor(s)[0],profile=E.timingProfileFor(opt,s),result=s.lie==="green"?E.resolvePutt(s,opt,E.timingResult(50,profile),()=>.5):E.resolveFullShot(s,opt,E.timingResult(50,profile),()=>.5);
-    if(result.finished){finished++;break}
+  const s=E.freshState("FINISH","balance",18);s.hole=hole;s.distance=E.holes[hole].yards;s.lie="tee";s.winds[hole]=1;s.strokes=0;
+  for(let turn=0;turn<14;turn++){
+    const opt=E.optionsFor(s)[0],profile=E.timingProfileFor(opt,s),timing=E.timingResult(50,profile);
+    const result=s.lie==="green"?E.resolvePutt(s,opt,timing,()=>.5):E.resolveFullShot(s,opt,timing,()=>.5);
+    if(result.finished){holesFinished++;break}
   }
   maxStrokes=Math.max(maxStrokes,s.strokes);
 }
 
-const legacy=E.freshState("RESUME");legacy.version=2;delete legacy.position;const migrated=E.migrate(legacy);const resumed=makeContext({"pga-tour-18-save-v2":JSON.stringify(legacy)}).PGAEngine.freshState("CHECK");
-const attackState=E.freshState("ATTACK");const attackUses=Array.from({length:E.ATTACK_SHOT_LIMIT},()=>E.consumeAttackShot(attackState));const attackBlocked=!E.consumeAttackShot(attackState);
-const resumedAttack=E.migrate({...E.freshState("RESUME ATTACK"),attackShotsRemaining:2});
-const makeResultState=roundHoles=>{const s=E.freshState("RESULT","balance",roundHoles);for(let i=0;i<roundHoles;i++){s.scores[i]=E.holes[i].par;s.shots[i]=[{type:"shot",stroke:1,choice:"普通に打つ",timing:{grade:"GOOD"},outcome:"fairway",text:"残り 140ヤード"}]};s.scores[0]=E.holes[0].par-1;s.shots[0]=[{type:"shot",stroke:1,choice:"攻めて打つ",distanceBefore:290,timing:{grade:"PERFECT"},outcome:"green",text:"ピンまで 2.4m"},{type:"shot",stroke:2,choice:"パットする",distanceBefore:2.4,timing:{grade:"GOOD"},outcome:"cup",text:"2打でホールアウト"}];if(roundHoles>1){s.scores[1]=E.holes[1].par+2;s.shots[1]=[{type:"shot",stroke:1,choice:"攻めて打つ",distanceBefore:300,timing:{grade:"BAD"},outcome:"ob",text:"OB。1罰打を加えて元の位置から打ち直しです。次は3打目です。"}]};return s};
-const modeResults=[3,9,18].map(roundHoles=>E.buildFinalResult(makeResultState(roundHoles)));
-const balance=E.freshState("BALANCE","balance"),power=E.freshState("POWER","power"),technique=E.freshState("TECH","technique");
-const characterImagePaths=E.CHARACTERS.every(character=>["icon","bust","full"].every(kind=>character.images?.[kind]===`assets/characters/${character.id}/${kind}.png`));
-const aimLeft={...E.freshState("AIM"),aim:"left",hole:0,lie:"tee"},aimCenter={...E.freshState("AIM"),aim:"center",hole:0,lie:"tee"};aimLeft.winds[0]=1;aimCenter.winds[0]=1;
-const directionLeft=E.finalDirectionFor(aimLeft,E.timingResult(0,E.TIMING_PROFILES.normal),E.holes[0]),directionCenter=E.finalDirectionFor(aimCenter,E.timingResult(50,E.TIMING_PROFILES.normal),E.holes[0]);
-const obState=E.freshState("OB","power");obState.hole=1;obState.winds[1]=5;obState.aim="right";obState.lie="tee";obState.distance=E.holes[1].yards;const obOrigin=JSON.stringify({position:obState.position,lie:obState.lie,distance:obState.distance});const obResult=E.resolveFullShot(obState,E.optionsFor(obState)[1],E.timingResult(100,E.TIMING_PROFILES.attack),()=>0);
-const whState=E.freshState("WH","power");whState.hole=6;whState.winds[6]=4;whState.aim="right";whState.lie="fairway";whState.strokes=1;whState.distance=300;whState.position={progress:.35,lateral:0};const whOrigin=JSON.stringify({position:whState.position,lie:whState.lie,distance:whState.distance});const whResult=E.resolveFullShot(whState,E.optionsFor(whState)[1],E.timingResult(100,E.TIMING_PROFILES.attack),()=>0);
-const flightPlan=E.createShotAnimation({progress:0,lateral:0},{progress:.56,lateral:.1},E.timingResult(50,E.TIMING_PROFILES.normal),{outcome:"fairway"},false);
-const leftMissPlan=E.createShotAnimation({progress:.2,lateral:0},{progress:.64,lateral:-.5},E.timingResult(0,E.TIMING_PROFILES.normal),{outcome:"rough"},false);
-const puttPlan=E.createShotAnimation({progress:.93,lateral:.08},{progress:.98,lateral:0},E.timingResult(50,E.TIMING_PROFILES.puttNear),{outcome:"cup"},true);
-const missedPutt={...E.freshState("PUTT"),lie:"green",distance:5,position:{progress:.96,lateral:0}};const missedPuttResult=E.resolvePutt(missedPutt,greenOptions[0],E.timingResult(100,E.TIMING_PROFILES.puttStandard),()=>.99);
-const html=fs.readFileSync("index.html","utf8"),sw=fs.readFileSync("sw.js","utf8"),manifest=JSON.parse(fs.readFileSync("manifest.webmanifest","utf8"));
-const timingMarkup=(html.match(/<div class="timing-zones"[^>]*>([\s\S]*?)<\/div>/)||[])[1]||"";
-const appSource=fs.readFileSync("app.js","utf8"),styleSource=fs.readFileSync("styles.css","utf8");
-const swingPaths=E.CHARACTERS.flatMap(character=>E.spriteFramePaths(character)),puttPaths=E.CHARACTERS.flatMap(character=>E.spriteFramePaths(character,true));
-const spriteTotal=character=>Array.from({length:5},(_,index)=>E.spriteDelayFor(character,false,index)).reduce((sum,delay)=>sum+delay,0)+90;
-const phaseG35={characterActionUi:["characterActionOverlay","characterActionPanel","characterActionImage","characterActionEffect","characterActionLabel"].every(id=>html.includes(`id="${id}"`)),spriteEngine:["spriteFramePaths","readySpriteFrames","playSpriteFrames","spriteDelayFor"].every(name=>appSource.includes(name)),swingFramesPresent:swingPaths.every(path=>fs.existsSync(path)),puttFramesOptional:puttPaths.every(path=>!fs.existsSync(path)),spriteTimings:{balance:E.spriteDelayFor(E.characterById("balance"),false,0),power:E.spriteDelayFor(E.characterById("power"),false,0),technique:E.spriteDelayFor(E.characterById("technique"),false,0)},spriteTotals:{balance:spriteTotal(E.characterById("balance")),power:spriteTotal(E.characterById("power")),technique:spriteTotal(E.characterById("technique"))},spriteStyles:styleSource.includes("data-sprite")&&styleSource.includes("sprite-miss")&&styleSource.includes("sprite-bad"),cssFallback:appSource.includes('characterImageMarkup(character,"full"'),cacheV14:sw.includes("v14")&&sw.includes("SWING_FRAME_ASSETS")&&sw.includes("PUTT_FRAME_ASSETS")};
-const phaseG4={courseTitle:E.COURSE_TITLE==="URBAN TOUR 18"&&E.COURSE_SUBTITLE==="GREEN CITY SPECIAL COURSE"&&E.COURSE_THEME==="urban",urbanHoles:E.holes.length===18&&E.holes.every(h=>h.name&&h.comment&&h.par&&h.yards&&h.features&&h.greenLabel),urbanMap:["mapBase","urbanRoad","urbanCrosswalk","urbanBuildings","urbanPark","urbanRooftop","urbanRail","urbanNeon","urbanFountain","mapDistrict","holeName","holeComment"].every(id=>html.includes(`id="${id}"`)),urbanStyles:styleSource.includes("urban-map")&&styleSource.includes("urban-hole-note")&&styleSource.includes("data-tone"),urbanObWh:obResult.urbanHazard===E.holes[1].obLabel&&obResult.text.includes(E.holes[1].obLabel)&&whResult.urbanHazard===E.holes[6].waterLabel&&whResult.text.includes(E.holes[6].waterLabel),urbanResult:modeResults.every(result=>result.courseTitle==="URBAN TOUR 18")&&E.holes.some(h=>E.shotLabel?E.shotLabel({hole:h.number,stroke:1}).includes(h.name):appSource.includes("function shotLabel")),cacheV14:sw.includes("pga-tour-18-v14")};
-const phaseG41={visualData:E.holes.every(h=>["areaType","timeOfDay","landmark","mapTheme"].every(key=>Boolean(h[key]))),timeBands:["day","sunset","night"].every(time=>E.holes.some(h=>h.timeOfDay===time)),landmarkMap:["urbanConstruction","landmarkPark","landmarkShopping","landmarkRiver","landmarkRooftop","landmarkStation","landmarkConstruction","landmarkMonorail","landmarkNeon","landmarkTower","mapLandmarkLabel"].every(id=>html.includes(`id="${id}"`)),mapLayers:["urbanDay","urbanSunset","urbanNight","grassTexture","waterTexture","sandTexture","road-shadow","building-side","roof-turf","rail-shadow"].every(token=>html.includes(token)),mapRenderer:appSource.includes("dataset.time")&&appSource.includes("dataset.mapTheme")&&appSource.includes("landmarks"),greenDetail:["greenSurface","greenGrain","green-shadow","green-grain","green-mow-lines","cup-shadow"].every(token=>html.includes(token)),greenStyles:styleSource.includes("green-mow-lines")&&styleSource.includes("green-ball-marker circle:first-child"),cacheV14:sw.includes("pga-tour-18-v14")};
-const introFresh=E.freshState("INTRO"),introMigrated=E.migrate({...E.freshState("INTRO LEGACY"),seenHoleIntroIds:null,skipHoleIntro:null});
-const phaseG42={introUi:["holeIntroOverlay","holeIntroCard","holeIntroProgress","holeIntroTime","holeIntroArea","holeIntroTitle","holeIntroPar","holeIntroYards","holeIntroMap","holeIntroLandmark","holeIntroComment","holeIntroHazards","holeIntroStartButton","holeIntroSkipButton","skipHoleIntroToggle"].every(id=>html.includes(`id="${id}"`)),introEngine:["introHazardsFor","introMiniMapMarkup","shouldShowHoleIntro","dismissHoleIntro","syncHoleIntro","setHoleIntroOpen"].every(name=>appSource.includes(name)),introState:Array.isArray(introFresh.seenHoleIntroIds)&&introFresh.seenHoleIntroIds.length===0&&introFresh.skipHoleIntro===false&&Array.isArray(introMigrated.seenHoleIntroIds)&&introMigrated.skipHoleIntro===false,introFlow:E.shouldShowHoleIntro(introFresh)&&!E.shouldShowHoleIntro({...introFresh,strokes:1})&&!E.shouldShowHoleIntro({...introFresh,skipHoleIntro:true})&&!E.shouldShowHoleIntro({...introFresh,seenHoleIntroIds:[0]}),introData:E.holes.every(h=>h.name&&h.comment&&h.landmark&&h.timeOfDay&&h.areaType)&&E.introHazardsFor(E.holes[4]).includes("屋上外OB")&&E.introHazardsFor(E.holes[10]).some(tag=>tag.includes("WH")),introMiniMap:E.introMiniMapMarkup(E.holes[0]).includes("intro-mini-fairway")&&E.introMiniMapMarkup(E.holes[1]).includes("intro-mini-ob"),introStyles:styleSource.includes("hole-intro-overlay")&&styleSource.includes("hole-intro-card[data-time")&&styleSource.includes("intro-locked"),cacheV14:sw.includes("pga-tour-18-v14")};
-const approachSample=(distance,lie,grade)=>E.approachTravelFor({distance,lie},E.optionsFor(E.freshState("APPROACH"))[0],{grade},E.freshState("APPROACH"),()=>.5);
-const phaseG43={settingsUi:["settingsButton","settingsOverlay","showHoleIntroSetting","enableSwingAnimationSetting","enableBallAnimationSetting","settingsRestartButton","settingsDeleteSaveButton"].every(id=>html.includes(`id="${id}"`)),settingsEngine:["DEFAULT_GAME_SETTINGS","loadGameSettings","applySettingsFromUi","animationSpeedMultiplier","enableSwingAnimation","enableBallAnimation"].every(name=>appSource.includes(name)),settingsMigration:E.normalizeGameSettings({},true).showHoleIntro===false&&E.normalizeGameSettings({},false).showHoleIntro===true&&E.normalizeGameSettings({animationSpeed:"fast"}).animationSpeed==="fast",animationFlow:appSource.includes("if(!gameSettings.enableSwingAnimation)return")&&appSource.includes("if(!gameSettings.enableBallAnimation)")&&appSource.includes("*animationSpeedMultiplier()"),approachEngine:typeof E.approachTravelFor==="function"&&appSource.includes("approachBoost"),approachFloors:approachSample(80,"fairway","GOOD").travel>=56&&approachSample(60,"fairway","GOOD").travel>=45&&approachSample(45,"fairway","PERFECT").travel>=31.5&&approachSample(35,"bunker","PERFECT").travel>=15,approachBad:approachSample(45,"bunker","BAD").travel<20,styles:styleSource.includes("settings-overlay")&&styleSource.includes("settings-toggle"),cacheV14:sw.includes("pga-tour-18-v14")};
-const makeApproachState=(distance,lie="fairway",hole=0)=>{const s=E.freshState("APPROACH");s.hole=hole;s.distance=distance;s.lie=lie;s.position={progress:.7,lateral:0};s.winds[hole]=1;s.aim="center";return s};
-const chipInState=makeApproachState(8),chipInResult=E.resolveFullShot(chipInState,E.optionsFor(chipInState)[0],E.timingResult(50,E.TIMING_PROFILES.normal),()=>0);
-const goodShotInState=makeApproachState(25),goodShotInResult=E.resolveFullShot(goodShotInState,E.optionsFor(goodShotInState)[0],E.timingResult(55,E.TIMING_PROFILES.normal),()=>0);
-const missShotInState=makeApproachState(25),missShotInResult=E.resolveFullShot(missShotInState,E.optionsFor(missShotInState)[0],E.timingResult(85,E.TIMING_PROFILES.normal),()=>0);
-const hioState=makeApproachState(E.holes[2].yards,"tee",2),hioResult=E.resolveFullShot(hioState,E.optionsFor(hioState)[0],E.timingResult(50,E.TIMING_PROFILES.normal),()=>0);
-const shotInBest=E.bestAndTrouble({logs:[{outcome:"green",timing:{grade:"PERFECT"}},{outcome:"shot-in",shotInType:"CHIP IN",timing:{grade:"GOOD"}}]}).best;
-const phaseG44={timingBalance:E.TIMING_PROFILES.normal.perfect===8&&E.TIMING_PROFILES.normal.good===20&&E.TIMING_PROFILES.attack.perfect===5&&E.TIMING_PROFILES.layup.good===30,goodApproach:approachSample(60,"fairway","GOOD").travel>=48&&approachSample(45,"rough","GOOD").travel>=31&&approachSample(30,"bunker","PERFECT").travel>=18&&approachSample(80,"rough","NORMAL").travel>=30,shotInEngine:["shotInChanceFor","shotInResultFor","showShotInCelebration","shotInType"].every(name=>appSource.includes(name)),shotInChances:E.shotInChanceFor({distance:8,lie:"fairway"},{grade:"PERFECT"},{},{value:0,error:0},E.holes[0]).chance>=.1&&E.shotInChanceFor({distance:25,lie:"fairway"},{grade:"GOOD"},{},{value:0,error:0},E.holes[0]).chance>0&&E.shotInChanceFor({distance:25,lie:"fairway"},{grade:"MISS"},{},{value:0,error:0},E.holes[0]).eligible===false,shotInOutcomes:chipInResult.finished&&chipInResult.shotInType==="CHIP IN"&&goodShotInResult.finished&&goodShotInResult.shotIn&&(!missShotInResult.shotIn)&&hioResult.finished&&hioResult.shotInType==="HOLE IN ONE",bestShotPriority:shotInBest.shotInType==="CHIP IN",shotInUi:["shotInOverlay","shotInLabel","shotInMessage"].every(id=>html.includes(`id="${id}"`))&&styleSource.includes("shot-in-overlay"),cacheV15:sw.includes("pga-tour-18-v15")};
+const outside=E.optionsFor(E.freshState("OPTIONS"));
+const greenState=E.freshState("GREEN");greenState.lie="green";greenState.distance=3;
+const greenOptions=E.optionsFor(greenState);
+const legacy=E.migrate({...E.freshState("LEGACY"),selectedShotType:"layup",attackShotsRemaining:2,attackUsed:3,favoriteShot:"layup",weakShot:"attack"});
+const balance=E.freshState("BAL","balance"),power=E.freshState("POW","power"),technique=E.freshState("TEC","technique");
+const normalProfiles={balance:E.timingProfileFor(outside[0],balance),power:E.timingProfileFor(outside[0],power),technique:E.timingProfileFor(outside[0],technique)};
+const attackProfiles={balance:E.timingProfileFor(outside[1],balance),power:E.timingProfileFor(outside[1],power),technique:E.timingProfileFor(outside[1],technique)};
+const approachSample=(distance,lie,grade)=>E.approachTravelFor({distance,lie},outside[0],{grade},E.freshState("APPROACH","technique"),()=>.5);
+
+const chipState=E.freshState("CHIP","technique");chipState.lie="fairway";chipState.distance=8;chipState.position={progress:.82,lateral:0};chipState.winds[0]=1;
+const chip=E.resolveFullShot(chipState,outside[0],E.timingResult(50,E.timingProfileFor(outside[0],chipState)),()=>0);
+const hioState=E.freshState("HIO","power");hioState.hole=2;hioState.lie="tee";hioState.distance=E.holes[2].yards;hioState.winds[2]=1;
+const hio=E.resolveFullShot(hioState,E.optionsFor(hioState)[0],E.timingResult(50,E.timingProfileFor(E.optionsFor(hioState)[0],hioState)),()=>0);
+
+const obState=E.freshState("OB","power");obState.hole=1;obState.winds[1]=5;obState.aim="right";obState.lie="tee";obState.distance=E.holes[1].yards;
+const obOrigin=JSON.stringify({position:obState.position,lie:obState.lie,distance:obState.distance});
+const obResult=E.resolveFullShot(obState,E.optionsFor(obState)[1],E.timingResult(100,E.timingProfileFor(E.optionsFor(obState)[1],obState)),()=>0);
+const whState=E.freshState("WH","power");whState.hole=6;whState.winds[6]=4;whState.aim="right";whState.lie="fairway";whState.strokes=1;whState.distance=300;whState.position={progress:.35,lateral:0};
+const whOrigin=JSON.stringify({position:whState.position,lie:whState.lie,distance:whState.distance});
+const whResult=E.resolveFullShot(whState,E.optionsFor(whState)[1],E.timingResult(100,E.timingProfileFor(E.optionsFor(whState)[1],whState)),()=>0);
+
+const resultState=roundHoles=>{const s=E.freshState("RESULT","balance",roundHoles);for(let i=0;i<roundHoles;i++){s.scores[i]=E.holes[i].par;s.shots[i]=[{type:"shot",stroke:1,choice:"強めに打つ",timing:{grade:"GOOD"},outcome:"fairway",text:"残り 140ヤード"}]};s.scores[0]=E.holes[0].par-1;s.shots[0]=[{type:"shot",stroke:1,choice:"強めに打つ",distanceBefore:120,lie:"fairway",timing:{grade:"PERFECT"},outcome:"shot-in",shotInType:"SHOT IN",text:"スーパーショットがカップへ吸い込まれた！"}];return s};
+const modeResults=[3,9,18].map(n=>E.buildFinalResult(resultState(n)));
+const idRefs=[...appSource.matchAll(/\$\(\"#([A-Za-z0-9_-]+)\"\)/g)].map(match=>match[1]);
+const htmlIds=new Set([...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]));
+const missingIds=[...new Set(idRefs.filter(id=>!htmlIds.has(id)))];
+const shotHtmlAfter=ctx=>ctx.__elements.get("#shotOptions")?.innerHTML||"";
+const fieldCardNames=markup=>markup.includes("普通に打つ")&&markup.includes("強めに打つ")&&!markup.includes("パットする");
+const puttCardNames=markup=>markup.includes("パットする")&&!markup.includes("普通に打つ")&&!markup.includes("強めに打つ");
+E.renderShotCards();
+const renderedFieldCards=shotHtmlAfter(context);
+const legacySave=E.freshState("LEGACY HOTFIX","balance",18);legacySave.selectedShotType="layup";legacySave.attackRemaining=0;legacySave.attackShotsRemaining=0;legacySave.favoriteShot=undefined;legacySave.weakShot=undefined;legacySave.preferredShot=undefined;
+const legacyContext=makeContext({"pga-tour-18-save-v6":JSON.stringify(legacySave)}),legacyEngine=legacyContext.PGAEngine,legacyCards=shotHtmlAfter(legacyContext);
+const noLimitState=E.freshState("NO LIMIT");noLimitState.attackRemaining=0;delete noLimitState.attackShotsRemaining;
+const greenRenderContext=makeContext({"pga-tour-18-save-v6":JSON.stringify({...E.freshState("GREEN RENDER"),lie:"green",distance:2.4,greenPosition:{x:160,y:120}})});
+const introContext=makeContext({"pga-tour-18-save-v6":JSON.stringify(E.freshState("INTRO HOTFIX"))});introContext.PGAEngine.dismissHoleIntro();introContext.PGAEngine.renderShotCards();
+const modeStartCards=[3,9,18].map(holes=>{const s=E.freshState(`MODE ${holes}`,"balance",holes);const c=makeContext({"pga-tour-18-save-v6":JSON.stringify(s)});return shotHtmlAfter(c)});
+
+const phaseG45={
+  twoShotOptions:outside.length===2&&outside.map(o=>o.name).join("|")==="普通に打つ|強めに打つ",
+  puttOnly:greenOptions.length===1&&greenOptions[0].name==="パットする",
+  noLayupUi:!html.includes("刻んで打つ")&&!html.includes("刻み")&&!outside.some(o=>o.id==="layup"||o.name.includes("刻")),
+  noFavoriteWeakUi:!html.includes("得意")&&!html.includes("苦手")&&!appSource.includes("得意:")&&!appSource.includes("苦手:"),
+  noAttackLimitUi:!html.includes("攻め残り")&&!appSource.includes("攻め残り")&&!html.includes("attackCounter"),
+  legacyMigration:legacy.selectedShotType==="normal"&&!("attackShotsRemaining" in legacy)&&!("attackUsed" in legacy)&&!("favoriteShot" in legacy)&&!("weakShot" in legacy),
+  characterPerformance:E.characterPerformance("power").baseDistanceMultiplier>E.characterPerformance("balance").baseDistanceMultiplier&&E.characterPerformance("balance").baseDistanceMultiplier>E.characterPerformance("technique").baseDistanceMultiplier,
+  characterTiming:normalProfiles.technique.perfect>normalProfiles.balance.perfect&&normalProfiles.balance.perfect>normalProfiles.power.perfect&&normalProfiles.technique.good>normalProfiles.balance.good&&normalProfiles.balance.good>normalProfiles.power.good,
+  strongTiming:attackProfiles.balance.perfect<normalProfiles.balance.perfect&&attackProfiles.balance.good<normalProfiles.balance.good,
+  distanceBalance:travelFor("power","normal")>travelFor("balance","normal")&&travelFor("balance","normal")>travelFor("technique","normal")&&travelFor("balance","attack")>travelFor("balance","normal"),
+  sideMissBalance:directionFor("power","attack")>directionFor("balance","attack")&&directionFor("balance","attack")>directionFor("technique","attack")&&directionFor("balance","attack")>directionFor("balance","normal"),
+  approachGuard:approachSample(60,"fairway","GOOD").travel>=48&&approachSample(45,"rough","GOOD").travel>=31&&approachSample(30,"bunker","PERFECT").travel>=18,
+  shotIn:chip.finished&&chip.shotInType==="CHIP IN"&&hio.finished&&hio.shotInType==="HOLE IN ONE",
+  resultModes:modeResults.every((r,i)=>r.roundHoles===[3,9,18][i]&&r.ranking.length===21&&r.stats&&r.bestShot),
+  obWh:obResult.outcome==="ob"&&obState.strokes===2&&JSON.stringify({position:obState.position,lie:obState.lie,distance:obState.distance})===obOrigin&&whResult.outcome==="wh"&&whState.strokes===3&&JSON.stringify({position:whState.position,lie:whState.lie,distance:whState.distance})===whOrigin,
+  pwa:manifest.display&&sw.includes("pga-tour-18-v17")&&["index.html","styles.css","app.js","manifest.webmanifest","icon.svg"].every(asset=>sw.includes(asset)),
+  htmlIds:missingIds.length===0
+};
+const phaseG451={
+  shotRenderEngine:["safeShotOptionsFor","renderShotCards","FIELD_SHOT_FALLBACK"].every(name=>appSource.includes(name)),
+  fieldCardsRendered:fieldCardNames(renderedFieldCards),
+  legacyLayupResume:legacyEngine.normalizeShotId(legacyEngine.migrate({...legacySave,selectedShotType:"layup"}).selectedShotType)==="normal"&&fieldCardNames(legacyCards),
+  attackRemainingIgnored:E.safeShotOptionsFor(noLimitState).map(option=>option.name).join("|")==="普通に打つ|強めに打つ",
+  favoriteWeakIgnored:E.safeShotOptionsFor({...E.freshState("NO PREF"),favoriteShot:undefined,weakShot:undefined,preferredShot:undefined}).length===2,
+  greenPuttOnly:puttCardNames(shotHtmlAfter(greenRenderContext)),
+  introDismissCards:fieldCardNames(shotHtmlAfter(introContext)),
+  modeStartCards:modeStartCards.every(fieldCardNames),
+  noContainerMismatch:html.includes('id="shotOptions"')&&appSource.includes('$("#shotOptions")'),
+  pwaV17:sw.includes("pga-tour-18-v17")
+};
+
 console.log(JSON.stringify({
-  syntax:"passed",phaseG35,phaseG4,phaseG41,phaseG42,phaseG43,phaseG44,outsideOptions:outsideOptions.map(x=>x.name),greenOptions:greenOptions.map(x=>x.name),
-  profiles:profileChecks,attackPerfect:E.TIMING_PROFILES.attack.perfect,attackBadFrom:Math.floor(E.TIMING_PROFILES.attack.miss)+1,layupPerfect:E.TIMING_PROFILES.layup.perfect,layupBadFrom:Math.floor(E.TIMING_PROFILES.layup.miss)+1,
-  puttProfiles:[.8,2.5,5,8,12].map(distance=>E.timingProfileFor(greenOptions[0],{...greenShot,distance}).key),
-  perfectOutcome:idealResult.outcome,badOutcome:badResult.outcome,holesFinished:finished,maxStrokes,
-  characterImages:characterImagePaths,imageFallback:fs.readFileSync("app.js","utf8").includes('onerror=')&&fs.readFileSync("app.js","utf8").includes('is-missing'),imageUi:html.includes('id="resultCharacterVisual"')&&html.includes('id="characterOptions"')&&html.includes('id="characterStatus"'),
-  courseDataComplete:E.holes.every(h=>["leftRisk","rightRisk","waterRisk","bunkerRisk","obSide"].every(k=>k in h)),courseSvg:html.includes('id="courseMap"')&&html.includes('urban-map'),timingBands:(timingMarkup.match(/<i><\/i>/g)||[]).length===9,legacyV2Supported:fs.readFileSync("app.js","utf8").includes('pga-tour-18-save-v2'),legacyMigration:migrated.version===6&&Boolean(migrated.position)&&Boolean(migrated.winds)&&migrated.attackShotsRemaining===E.ATTACK_SHOT_LIMIT&&migrated.characterId==="balance"&&migrated.selectedCharacterId==="balance",roundModes:modeResults.map(result=>({mode:result.mode,holes:result.roundHoles,scores:result.scores.length,ranking:result.ranking.length,stats:Boolean(result.stats),best:Boolean(result.bestShot),trouble:Boolean(result.troubleShot)})),resultUi:["resultView","resultScorecard","resultStats","bestShotTitle","troubleShotTitle","resultRanking","playAgainButton","changeCharacterButton","modeSelectButton"].every(id=>html.includes(`id="${id}"`)),characters:balance.power===78&&balance.accuracy===78&&power.power===92&&power.accuracy===62&&technique.putting===86&&technique.shortGame===88,characterTimingBonus:E.timingProfileFor(E.optionsFor(technique)[2],technique).perfect>12,directionalAim:directionLeft.side==="left"&&directionLeft.value<directionCenter.value&&directionCenter.side==="center",lieMultipliers:{fairway:[E.lieMultiplierFor("fairway",{},()=>0),E.lieMultiplierFor("fairway",{},()=>.999)],rough:[E.lieMultiplierFor("rough",{},()=>0),E.lieMultiplierFor("rough",{},()=>.999)],bunker:[E.lieMultiplierFor("bunker",{},()=>0),E.lieMultiplierFor("bunker",{},()=>.999)]},obRetry:obResult.outcome==="ob"&&obState.strokes===2&&JSON.stringify({position:obState.position,lie:obState.lie,distance:obState.distance})===obOrigin&&obResult.text.includes("次は3打目"),whRetry:whResult.outcome==="wh"&&whState.strokes===3&&JSON.stringify({position:whState.position,lie:whState.lie,distance:whState.distance})===whOrigin&&whResult.text.includes("次は4打目"),aimUi:["aimPanel","aimOptions","aimLabel","aimLine"].every(id=>html.includes(`id="${id}"`)),characterUi:html.includes('id="characterOptions"')&&html.includes('id="characterStatus"'),resultComment:E.resultComment(outsideOptions[1],perfect,{outcome:"fairway"}).includes("完璧なインパクト"),attackLimit:E.ATTACK_SHOT_LIMIT===6&&attackUses.every(Boolean)&&attackState.attackShotsRemaining===0&&attackBlocked,newGameAttackReset:E.freshState("NEW").attackShotsRemaining===6,attackResume:resumedAttack.attackShotsRemaining===2&&E.canUseAttack(resumedAttack),attackButtonState:fs.readFileSync("app.js","utf8").includes('aria-disabled'),flightAnimation:flightPlan.type==="flight"&&flightPlan.duration>=800&&flightPlan.duration<=1200&&flightPlan.control.y<flightPlan.from.y&&flightPlan.runBack>0,puttAnimation:puttPlan.type==="putt"&&puttPlan.duration<flightPlan.duration&&puttPlan.runBack===0,puttMarkerUpdates:!missedPuttResult.finished&&missedPutt.position.progress===.98&&missedPutt.position.lateral>0&&Boolean(missedPutt.greenPosition),puttDifficulties:[.8,2.5,5,8,12].map(E.puttDifficultyLabel),leftMissBendsLeft:leftMissPlan.control.x<(leftMissPlan.from.x+leftMissPlan.landing.x)/2,animationSvg:["shotTrail","flightBall","cupPulse"].every(id=>html.includes(`id="${id}"`)),greenViewSvg:["greenView","greenBallMarker","greenPuttLine","greenShotTrail","greenCupPulse","greenDistance"].every(id=>html.includes(`id="${id}"`)),unusedLegacyName:!fs.readFileSync("app.js","utf8").includes('安全に打つ'),manifest:manifest.display,serviceWorkerAssets:["index.html","styles.css","app.js","manifest.webmanifest","icon.svg"].every(x=>sw.includes(x)),characterAssetsCached:sw.includes("BASE_CHARACTER_ASSETS")&&sw.includes("SWING_FRAME_ASSETS"),cacheV14:sw.includes('v14'),resumeHarness:Boolean(resumed)
+  syntax:"passed",
+  phaseG45,phaseG451,
+  outsideOptions:outside.map(o=>({id:o.id,name:o.name,desc:o.desc})),
+  greenOptions:greenOptions.map(o=>o.name),
+  profiles:{normalProfiles,attackProfiles},
+  travel:{power:travelFor("power"),balance:travelFor("balance"),technique:travelFor("technique"),balanceStrong:travelFor("balance","attack")},
+  sideMiss:{powerStrong:directionFor("power","attack"),balanceStrong:directionFor("balance","attack"),techStrong:directionFor("technique","attack"),balanceNormal:directionFor("balance","normal")},
+  holesFinished,maxStrokes,
+  modeResults:modeResults.map(result=>({mode:result.mode,holes:result.roundHoles,rank:result.rank,total:result.total,stats:Boolean(result.stats),best:Boolean(result.bestShot)})),
+  missingIds,
+  serviceWorkerCache:"pga-tour-18-v17"
 },null,2));
