@@ -1,5 +1,5 @@
-const CACHE="pga-tour-18-v19";
-const ASSETS=["./","./index.html","./styles.css?v=19","./app.js?v=19","./manifest.webmanifest","./icon.svg"];
+const CACHE="pga-tour-18-v20";
+const ASSETS=["./","./index.html","./styles.css?v=20.1","./app.js?v=20.1","./manifest.webmanifest","./icon.svg"];
 const CHARACTER_IDS=["balance","power","technique"];
 const BASE_CHARACTER_ASSETS=CHARACTER_IDS.flatMap(id=>["icon","bust","full"].map(kind=>`assets/characters/${id}/${kind}.png`));
 const SWING_FRAME_ASSETS=CHARACTER_IDS.flatMap(id=>["swing_01_address","swing_02_backswing","swing_03_top","swing_04_impact","swing_05_follow"].map(frame=>`assets/characters/${id}/swing/${frame}.png`));
