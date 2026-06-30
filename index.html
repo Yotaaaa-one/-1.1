@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=18">
   <title>URBAN TOUR 18</title>
 </head>
 <body>
@@ -17,7 +17,7 @@
       <div class="brand-mark" aria-hidden="true"><span>18</span></div>
       <div class="brand-copy">
         <strong>URBAN TOUR 18</strong>
-        <span>GREEN CITY SPECIAL COURSE</span>
+        <span id="currentCourseName">GREEN CITY SPECIAL COURSE</span>
       </div>
       <div class="topbar-actions"><button class="icon-button" id="settingsButton" aria-label="設定">⚙</button><button class="icon-button" id="newGameButton" aria-label="新しいラウンド">↻</button></div>
     </header>
@@ -32,16 +32,20 @@
       <section id="playView" class="view active" aria-label="プレイ画面">
         <div id="startPanel" class="start-panel hidden">
           <div class="hero-emblem">18</div>
-          <p class="eyebrow">GREEN CITY · SAFETY-MANAGED SPECIAL EVENT</p>
+          <p class="eyebrow" id="startCourseEyebrow">TOKYO INSPIRED · SPECIAL EVENT</p>
           <h1>街を駆け抜ける、<br>特設18ホール。</h1>
           <p>大会期間中だけ安全に規制された架空都市コースで、20人のフィールドに挑戦。すべてのショットがスコアカードに残ります。</p>
-          <section class="mode-picker" aria-label="プレーモード選択">
-            <div class="picker-heading"><span>SELECT MODE</span><small>HOLES</small></div>
-            <div class="mode-options" id="modeOptions"></div>
+          <section class="course-picker" aria-label="コース選択">
+            <div class="picker-heading"><span>SELECT COURSE</span><small>TOKYO INSPIRED</small></div>
+            <div class="course-options" id="courseOptions"></div>
           </section>
           <section class="character-picker" aria-label="プレイヤーキャラクター選択">
             <div class="picker-heading"><span>SELECT PRO</span><small>3 CHARACTERS</small></div>
             <div class="character-options" id="characterOptions"></div>
+          </section>
+          <section class="mode-picker" aria-label="プレーモード選択">
+            <div class="picker-heading"><span>SELECT MODE</span><small>HOLES</small></div>
+            <div class="mode-options" id="modeOptions"></div>
           </section>
           <label class="name-field">
             <span>PLAYER NAME</span>
@@ -196,7 +200,7 @@
         </section>
         <section class="pga-comment" id="pgaComment">PGA君コメント</section>
         <section class="result-section">
-          <h3>FINAL RANKING <small>GREEN CITY SPECIAL COURSE</small></h3>
+          <h3>FINAL RANKING <small id="resultCourseName">GREEN CITY SPECIAL COURSE</small></h3>
           <div class="result-ranking-head"><span>POS</span><span>PLAYER</span><span>SCORE</span><span>TOTAL</span></div>
           <div class="result-ranking" id="resultRanking"></div>
         </section>
@@ -221,7 +225,7 @@
       </section>
 
       <section id="rankingView" class="view" aria-label="ランキング">
-        <div class="page-heading leaderboard-heading"><div><p>URBAN TOUR 18 · GREEN CITY SPECIAL COURSE</p><h2>LEADERBOARD</h2></div><span><i></i> LIVE</span></div>
+        <div class="page-heading leaderboard-heading"><div><p id="rankingCourseName">URBAN TOUR 18 · GREEN CITY SPECIAL COURSE</p><h2>LEADERBOARD</h2></div><span><i></i> LIVE</span></div>
         <div class="ranking-subhead"><span>POS</span><span>PLAYER</span><span>THRU</span><span>TOTAL</span></div>
         <div id="rankingList" class="ranking-list"></div>
       </section>
@@ -239,7 +243,7 @@
   </div>
   <div class="hole-intro-overlay hidden" id="holeIntroOverlay" aria-modal="true" aria-labelledby="holeIntroTitle" role="dialog">
     <article class="hole-intro-card" id="holeIntroCard" data-time="day" data-area="park">
-      <div class="hole-intro-topline"><span>URBAN TOUR 18</span><span id="holeIntroProgress">1 / 18H</span></div>
+      <div class="hole-intro-topline"><span id="holeIntroCourse">GREEN CITY SPECIAL COURSE</span><span id="holeIntroProgress">1 / 18H</span></div>
       <div class="hole-intro-kicker"><span id="holeIntroTime">昼</span><span id="holeIntroArea">公園エリア</span></div>
       <h2 id="holeIntroTitle">1H シティパーク・オープナー</h2>
       <div class="hole-intro-score"><strong id="holeIntroPar">PAR 4</strong><strong id="holeIntroYards">376 YDS</strong></div>
@@ -278,6 +282,6 @@
     <div class="shot-in-flash"></div>
     <div class="shot-in-copy"><span>URBAN TOUR 18</span><strong id="shotInLabel">CHIP IN!</strong><p id="shotInMessage">都市の一打、カップへ一直線！</p></div>
   </div>
-  <script src="app.js"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>
