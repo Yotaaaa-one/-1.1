@@ -80,7 +80,7 @@ const phaseG45={
   shotIn:chip.finished&&chip.shotInType==="CHIP IN"&&hio.finished&&hio.shotInType==="HOLE IN ONE",
   resultModes:modeResults.every((r,i)=>r.roundHoles===[3,9,18][i]&&r.ranking.length===21&&r.stats&&r.bestShot),
   obWh:obResult.outcome==="ob"&&obState.strokes===2&&JSON.stringify({position:obState.position,lie:obState.lie,distance:obState.distance})===obOrigin&&whResult.outcome==="wh"&&whState.strokes===3&&JSON.stringify({position:whState.position,lie:whState.lie,distance:whState.distance})===whOrigin,
-  pwa:manifest.display&&sw.includes("pga-tour-18-v18")&&["index.html","styles.css","app.js","manifest.webmanifest","icon.svg"].every(asset=>sw.includes(asset)),
+  pwa:manifest.display&&sw.includes("pga-tour-18-v19")&&["index.html","styles.css","app.js","manifest.webmanifest","icon.svg"].every(asset=>sw.includes(asset)),
   htmlIds:missingIds.length===0
 };
 const phaseG451={
@@ -93,7 +93,7 @@ const phaseG451={
   introDismissCards:fieldCardNames(shotHtmlAfter(introContext)),
   modeStartCards:modeStartCards.every(fieldCardNames),
   noContainerMismatch:html.includes('id="shotOptions"')&&appSource.includes('$("#shotOptions")'),
-  pwaV18:sw.includes("pga-tour-18-v18")
+  pwaV19:sw.includes("pga-tour-18-v19")
 };
 
 const requiredCourseIds=["greenCity","shibuya","odaiba","westTokyo"];
@@ -140,14 +140,29 @@ const phaseG5={
   resultCourseName:resultCourseText.includes("SHIBUYA URBAN COURSE"),
   cpuUsesCoursePar:courseRuns.shibuya.every(run=>run.final.par===E.COURSES.shibuya.holes.slice(0,run.roundHoles).reduce((sum,hole)=>sum+hole.par,0)),
   existingShots:outside.length===2&&greenOptions.length===1&&greenOptions[0].id==="putt",
-  pwaV18:sw.includes('const CACHE="pga-tour-18-v18"'),
+  pwaV19:sw.includes('const CACHE="pga-tour-18-v19"'),
   htmlIds:missingIds.length===0
+};
+const shibuyaWorldHoles=E.COURSES.shibuya.holes.slice(0,3),world0=shibuyaWorldHoles[0].world,world1=shibuyaWorldHoles[1].world,world2=shibuyaWorldHoles[2].world;
+const phaseG51={
+  worldOnShibuya123:shibuyaWorldHoles.every(hole=>Boolean(hole.world)),
+  requiredWorldShape:shibuyaWorldHoles.every(hole=>hole.world.tee&&Array.isArray(hole.world.fairwayPath)&&hole.world.fairwayPath.length>=2&&hole.world.green&&hole.world.pin&&Array.isArray(hole.world.hazards)&&Array.isArray(hole.world.landmarks)&&hole.world.cameraStart&&hole.world.shotCamera),
+  validWorldData:shibuyaWorldHoles.every(hole=>E.validateWorldData(hole.world)&&E.hasWorldData(hole)),
+  scaleAndAxes:shibuyaWorldHoles.every(hole=>hole.world.scale==="yard"&&["x","y","z"].every(axis=>Number.isFinite(hole.world.tee[axis]))),
+  widthDifference:Math.min(...world0.fairwayPath.map(point=>point.width))>Math.max(...world1.fairwayPath.map(point=>point.width)),
+  rooftopHeight:world2.tee.y>0||world2.green.y>0,
+  helperShibuya:E.getHoleWorldData("shibuya",0)===world0,
+  helperGreenSafe:E.getHoleWorldData("greenCity",0)===null&&!E.hasWorldData(E.COURSES.greenCity.holes[0]),
+  futureHolesUnset:E.getHoleWorldData("shibuya",3)===null,
+  helperCollections:E.getWorldHazards(shibuyaWorldHoles[0]).length===3&&E.getWorldLandmarks(shibuyaWorldHoles[0]).length===4,
+  gameplayIsolation:!appSource.match(/resolveFullShot[\s\S]{0,1200}\.world\b/)&&!appSource.match(/simulateCpu[\s\S]{0,500}\.world\b/),
+  pwaV19:sw.includes('const CACHE="pga-tour-18-v19"')
 };
 E.activateCourse("greenCity");
 
 console.log(JSON.stringify({
   syntax:"passed",
-  phaseG45,phaseG451,phaseG5,
+  phaseG45,phaseG451,phaseG5,phaseG51,
   outsideOptions:outside.map(o=>({id:o.id,name:o.name,desc:o.desc})),
   greenOptions:greenOptions.map(o=>o.name),
   profiles:{normalProfiles,attackProfiles},
@@ -157,5 +172,6 @@ console.log(JSON.stringify({
   modeResults:modeResults.map(result=>({mode:result.mode,holes:result.roundHoles,rank:result.rank,total:result.total,stats:Boolean(result.stats),best:Boolean(result.bestShot)})),
   missingIds,
   courseRuns:Object.fromEntries(Object.entries(courseRuns).map(([course,runs])=>[course,runs.map(run=>({mode:run.roundHoles,resolved:run.resolved,par:run.final.par,courseName:run.final.courseName}))])),
-  serviceWorkerCache:"pga-tour-18-v18"
+  worldReady:{shibuya:E.COURSES.shibuya.holes.map((hole,index)=>E.hasWorldData(hole)?index+1:null).filter(Boolean),greenCity:E.COURSES.greenCity.holes.filter(E.hasWorldData).length},
+  serviceWorkerCache:"pga-tour-18-v19"
 },null,2));

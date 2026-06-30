@@ -65,10 +65,80 @@ const SHIBUYA_HOLE_ROWS=[
 const SHIBUYA_FEATURES={
   crossing:["road","crosswalk","buildings"],shopping:["road","crosswalk","buildings"],rooftop:["rooftop","buildings","neon"],business:["road","buildings"],slope:["road","buildings"],overpass:["rail","road","construction"],neon:["neon","buildings","road"],plaza:["road","crosswalk","buildings"],gate:["road","buildings"],rail:["rail","road","buildings"],alley:["construction","road","buildings"],tower:["buildings","road","neon"],park:["park","neon"],avenue:["road","crosswalk","buildings","neon"],finale:["road","crosswalk","buildings","neon"]
 };
+// Reserved for future Three.js / 3D previews. Coordinates use yards:
+// x = forward, y = height, z = lateral. Current 2D gameplay never consumes them.
+const SHIBUYA_WORLD_DATA=[
+  {
+    scale:"yard",origin:{x:0,y:0,z:0},
+    tee:{x:0,y:0,z:0,rotationY:0},
+    fairwayPath:[
+      {x:0,y:0,z:0,width:38},{x:82,y:0,z:3,width:36},{x:172,y:0,z:8,width:32},{x:270,y:0,z:14,width:30},{x:350,y:0,z:18,width:28}
+    ],
+    green:{x:374,y:0,z:18,radiusX:23,radiusZ:18,slope:"slight_back_to_front"},
+    pin:{x:378,y:0,z:16},
+    hazards:[
+      {type:"ob",name:"左道路OB",side:"left",polygon:[{x:-18,z:-30},{x:392,z:-25},{x:392,z:-86},{x:-18,z:-86}]},
+      {type:"ob",name:"右道路OB",side:"right",polygon:[{x:-18,z:30},{x:392,z:67},{x:392,z:104},{x:-18,z:78}]},
+      {type:"ob",name:"奥のビル外OB",side:"back",polygon:[{x:395,z:-92},{x:438,z:-92},{x:438,z:108},{x:395,z:108}]}
+    ],
+    landmarks:[
+      {type:"crosswalk",name:"横断歩道風エリア",x:44,y:0,z:1,width:52,depth:30,height:.1},
+      {type:"building",name:"高層ビル群",x:156,y:0,z:-62,width:46,depth:32,height:92},
+      {type:"sign",name:"ネオン看板",x:226,y:12,z:58,width:24,depth:3,height:16},
+      {type:"gate",name:"イベントゲート",x:305,y:0,z:13,width:34,depth:5,height:12}
+    ],
+    cameraStart:{x:-28,y:17,z:-38,lookAt:{x:118,y:0,z:7}},
+    shotCamera:{x:-10,y:8,z:-17,lookAt:{x:168,y:0,z:10}}
+  },
+  {
+    scale:"yard",origin:{x:0,y:0,z:0},
+    tee:{x:0,y:0,z:0,rotationY:0},
+    fairwayPath:[
+      {x:0,y:0,z:0,width:26},{x:76,y:0,z:-2,width:24},{x:158,y:0,z:2,width:22},{x:246,y:0,z:4,width:20},{x:323,y:0,z:5,width:19}
+    ],
+    green:{x:341,y:0,z:5,radiusX:19,radiusZ:14,slope:"slight_right_to_left"},
+    pin:{x:344,y:0,z:3},
+    hazards:[
+      {type:"ob",name:"左道路OB",side:"left",polygon:[{x:-12,z:-22},{x:368,z:-18},{x:368,z:-62},{x:-12,z:-62}]},
+      {type:"ob",name:"右道路OB",side:"right",polygon:[{x:-12,z:22},{x:368,z:27},{x:368,z:67},{x:-12,z:63}]},
+      {type:"ob",name:"商店街建物OB",side:"both",polygon:[{x:54,z:-64},{x:330,z:-58},{x:330,z:-102},{x:54,z:-102}]}
+    ],
+    landmarks:[
+      {type:"building-row",name:"左建物列",x:118,y:0,z:-43,width:180,depth:24,height:35},
+      {type:"building-row",name:"右建物列",x:132,y:0,z:43,width:196,depth:24,height:39},
+      {type:"sign",name:"ストリート看板",x:184,y:9,z:32,width:17,depth:2,height:11},
+      {type:"gate",name:"アーケード風ゲート",x:272,y:0,z:4,width:27,depth:4,height:10}
+    ],
+    cameraStart:{x:-24,y:14,z:-29,lookAt:{x:104,y:0,z:0}},
+    shotCamera:{x:-9,y:7,z:-13,lookAt:{x:145,y:0,z:2}}
+  },
+  {
+    scale:"yard",origin:{x:0,y:18,z:0},
+    tee:{x:0,y:18,z:0,rotationY:0},
+    fairwayPath:[
+      {x:0,y:18,z:0,width:24},{x:67,y:19,z:2,width:22},{x:126,y:20,z:5,width:21}
+    ],
+    green:{x:153,y:20,z:5,radiusX:18,radiusZ:14,slope:"slight_front_to_back"},
+    pin:{x:157,y:20,z:3},
+    hazards:[
+      {type:"ob",name:"左屋上外OB",side:"left",polygon:[{x:-10,z:-24},{x:180,z:-22},{x:180,z:-75},{x:-10,z:-75}]},
+      {type:"ob",name:"右屋上外OB",side:"right",polygon:[{x:-10,z:24},{x:180,z:30},{x:180,z:76},{x:-10,z:70}]},
+      {type:"ob",name:"奥の落下OB",side:"back",polygon:[{x:178,z:-78},{x:215,z:-78},{x:215,z:80},{x:178,z:80}]}
+    ],
+    landmarks:[
+      {type:"rooftop-floor",name:"屋上人工芝床",x:78,y:17.5,z:2,width:178,depth:52,height:1},
+      {type:"building-side",name:"ビル側面",x:84,y:-18,z:-34,width:180,depth:8,height:36},
+      {type:"fence",name:"安全フェンス",x:78,y:18,z:27,width:174,depth:1,height:5},
+      {type:"building",name:"隣接ビル",x:116,y:0,z:64,width:42,depth:31,height:58}
+    ],
+    cameraStart:{x:-24,y:32,z:-31,lookAt:{x:72,y:19,z:3}},
+    shotCamera:{x:-8,y:25,z:-14,lookAt:{x:104,y:20,z:4}}
+  }
+];
 const SHIBUYA_HOLES=SHIBUYA_HOLE_ROWS.map((row,index)=>{
   const [name,par,yards,areaType,timeOfDay,landmark,mapTheme,comment,leftRisk,rightRisk,waterRisk,bunkerRisk,obSide,safeAim,windFactor]=row;
   const rooftop=areaType==="rooftop",difficulty=Math.max(3,Math.min(5,Math.round((leftRisk+rightRisk+bunkerRisk)/3)));
-  return{number:index+1,name,par,yards,areaType,timeOfDay,tone:timeOfDay,landmark,mapTheme,comment,leftRisk,rightRisk,waterRisk,bunkerRisk,obSide,waterSide:index===17?"right":"left",windFactor,difficulty,features:SHIBUYA_FEATURES[areaType]||["road","buildings"],district:landmark.toUpperCase(),fairwayLabel:"人工芝ストリートレーン",roughLabel:"街路樹・植栽ラフ",bunkerLabel:areaType==="alley"?"裏路地砂利":"都市バンカー",waterLabel:waterRisk?"CITY CANAL":"",obLabel:rooftop?"屋上外":"道路・立入禁止エリア",greenLabel:rooftop?"ルーフトップグリーン":"シブヤ特設グリーン",courseDifficulty:"HARD",urbanRisk:Math.max(leftRisk,rightRisk),windRisk:windFactor,obRiskMultiplier:1.08,fairwayWidth:leftRisk+rightRisk>=9?"narrow":"standard",visualDensity:5,safeAim};
+  return{number:index+1,name,par,yards,areaType,timeOfDay,tone:timeOfDay,landmark,mapTheme,comment,leftRisk,rightRisk,waterRisk,bunkerRisk,obSide,waterSide:index===17?"right":"left",windFactor,difficulty,features:SHIBUYA_FEATURES[areaType]||["road","buildings"],district:landmark.toUpperCase(),fairwayLabel:"人工芝ストリートレーン",roughLabel:"街路樹・植栽ラフ",bunkerLabel:areaType==="alley"?"裏路地砂利":"都市バンカー",waterLabel:waterRisk?"CITY CANAL":"",obLabel:rooftop?"屋上外":"道路・立入禁止エリア",greenLabel:rooftop?"ルーフトップグリーン":"シブヤ特設グリーン",courseDifficulty:"HARD",urbanRisk:Math.max(leftRisk,rightRisk),windRisk:windFactor,obRiskMultiplier:1.08,fairwayWidth:leftRisk+rightRisk>=9?"narrow":"standard",visualDensity:5,safeAim,...(SHIBUYA_WORLD_DATA[index]?{world:SHIBUYA_WORLD_DATA[index]}:{})};
 });
 const COURSES={
   greenCity:{courseId:"greenCity",courseName:"GREEN CITY SPECIAL COURSE",shortName:"GREEN CITY",region:"fictional",difficulty:"NORMAL",status:"available",courseType:"架空都市スペシャルコース",description:"公園、川、屋上、高架を巡るバランス型の都市18ホール。",features:"変化に富む都市景観 / 標準難易度",landmarks:"公園池、リバークロス、シティタワー",holes:GREEN_CITY_HOLES},
@@ -82,6 +152,15 @@ function activateCourse(id,persist=false){const course=courseById(id);selectedCo
 function getCurrentCourse(source){return courseById(source?.courseId||source?.selectedCourseId||selectedCourseId)}
 function getCurrentHoles(source){return getCurrentCourse(source).holes}
 function getHoleByIndex(index,source){return getCurrentHoles(source)[index]}
+function validateWorldData(world){
+  const point3=value=>value&&[value.x,value.y,value.z].every(Number.isFinite),camera=value=>point3(value)&&point3(value.lookAt);
+  return Boolean(world?.scale==="yard"&&point3(world.origin)&&point3(world.tee)&&Array.isArray(world.fairwayPath)&&world.fairwayPath.length>=2&&world.fairwayPath.every(point=>point3(point)&&Number.isFinite(point.width)&&point.width>0)&&point3(world.green)&&Number.isFinite(world.green.radiusX)&&Number.isFinite(world.green.radiusZ)&&point3(world.pin)&&Array.isArray(world.hazards)&&Array.isArray(world.landmarks)&&camera(world.cameraStart)&&camera(world.shotCamera));
+}
+function hasWorldData(hole){return validateWorldData(hole?.world)}
+function getHoleWorldData(courseId,holeIndex){const hole=courseById(courseId).holes?.[holeIndex];return hasWorldData(hole)?hole.world:null}
+function getCurrentCourseWorldReadyHoles(source){return getCurrentHoles(source).filter(hasWorldData)}
+function getWorldHazards(hole){return hasWorldData(hole)?hole.world.hazards:[]}
+function getWorldLandmarks(hole){return hasWorldData(hole)?hole.world.landmarks:[]}
 try{activateCourse(localStorage.getItem(COURSE_SELECTION_KEY)||"greenCity")}catch{}
 const cpuNames=["R. MORIKAWA","J. THOMAS","S. KIM","T. FLEETWOOD","H. MATSUYAMA","V. HOVLAND","X. SCHAUFFELE","S. THEEGALA","M. FITZPATRICK","C. SMITH","T. HATTON","W. CLARK","P. CANTLAY","J. DAY","A. SCOTT","B. KOEPKA","L. ÅBERG","S. IM","K. BRADLEY","T. FINAU"];
 const GRADE_INFO={PERFECT:{label:"PERFECT SHOT!",quality:1},GOOD:{label:"GOOD SHOT",quality:.78},NORMAL:{label:"NORMAL SHOT",quality:.52},MISS:{label:"MISS HIT",quality:.25},BAD:{label:"BAD SHOT",quality:0}};
@@ -446,7 +525,7 @@ function returnToStart(){selectedCharacterId=state.characterId||selectedCharacte
 function resetGame(){if(!state.started||confirm("現在のラウンドを終了して、新しく始めますか？")){localStorage.removeItem(STORAGE_KEY);localStorage.removeItem("pga-tour-18-save-v5");localStorage.removeItem("pga-tour-18-save-v4");localStorage.removeItem("pga-tour-18-save-v3");localStorage.removeItem("pga-tour-18-save-v2");localStorage.removeItem("pga-tour-18-save-v1");state={started:false};switchView("play");render()}}
 function showFinal(){const rank=getRanking().findIndex(x=>x.player)+1,rel=playerTotal()-parThrough(18);$("#finalPosition").textContent=formatRank(rank);$("#finalScore").textContent=relative(rel,0);$("#finalScore").className=scoreClass(rel);$("#modalBackdrop").classList.remove("hidden")}
 
-globalThis.PGAEngine={holes,COURSES,COURSE_SELECTION_KEY,ROUND_MODES,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,SETTINGS_KEY,DEFAULT_GAME_SETTINGS,FIELD_SHOT_FALLBACK,courseById,activateCourse,getCurrentCourse,getCurrentHoles,getHoleByIndex,renderCourseOptions,characterById,characterPerformance,normalizeShotId,displayShotChoice,isStrongChoice,normalizeShotOption,aimById,roundModeByHoles,timingProfileFor,timingResult,freshState,migrate,simulateCpu,optionsFor,safeShotOptionsFor,renderShotCards,ensureShotCardsVisible,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,approachTravelFor,shotInChanceFor,shotInResultFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,renderCharacterShotAnimation,setShotLock,rankingForRound,roundStats,bestAndTrouble,buildFinalResult,resultComment,normalizeGameSettings,loadGameSettings,animationSpeedMultiplier};
+globalThis.PGAEngine={holes,COURSES,COURSE_SELECTION_KEY,ROUND_MODES,CHARACTERS,AIM_OPTIONS,TIMING_PROFILES,SETTINGS_KEY,DEFAULT_GAME_SETTINGS,FIELD_SHOT_FALLBACK,courseById,activateCourse,getCurrentCourse,getCurrentHoles,getHoleByIndex,getHoleWorldData,hasWorldData,validateWorldData,getCurrentCourseWorldReadyHoles,getWorldHazards,getWorldLandmarks,renderCourseOptions,characterById,characterPerformance,normalizeShotId,displayShotChoice,isStrongChoice,normalizeShotOption,aimById,roundModeByHoles,timingProfileFor,timingResult,freshState,migrate,simulateCpu,optionsFor,safeShotOptionsFor,renderShotCards,ensureShotCardsVisible,canUseAttack,consumeAttackShot,puttDifficultyLabel,lieMultiplierFor,finalDirectionFor,approachTravelFor,shotInChanceFor,shotInResultFor,snapshotShotOrigin,restoreShotOrigin,resolveFullShot,resolvePutt,updatePosition,mapPoint,greenPointForDistance,quadraticPoint,createShotAnimation,renderCharacterShotAnimation,setShotLock,rankingForRound,roundStats,bestAndTrouble,buildFinalResult,resultComment,normalizeGameSettings,loadGameSettings,animationSpeedMultiplier};
 Object.assign(globalThis.PGAEngine,{spriteFramePaths,readySpriteFrames,spriteDelayFor,playSpriteFrames,checkSpriteAsset,COURSE_TITLE,COURSE_SUBTITLE,COURSE_THEME,urbanLieLabel});
 Object.assign(globalThis.PGAEngine,{introHazardsFor,introMiniMapMarkup,shouldShowHoleIntro,dismissHoleIntro,syncHoleIntro});
 $("#holeIntroStartButton").onclick=dismissHoleIntro;$("#holeIntroSkipButton").onclick=dismissHoleIntro;
